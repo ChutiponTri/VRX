@@ -1,0 +1,104 @@
+"use client";
+
+import React, { useEffect, useRef } from "react";
+import { PoseLandmarker, FilesetResolver, DrawingUtils } from "@mediapipe/tasks-vision";
+import { poseState } from "../poseStore";
+
+interface PoseEngineProps {
+  videoRef: React.RefObject<HTMLVideoElement | null>;
+  canvasRef: React.RefObject<HTMLCanvasElement | null>;
+}
+
+export default function PoseEngine({ videoRef, canvasRef }: PoseEngineProps) {
+  const initialized = useRef(false);
+
+  useEffect(() => {
+    if (initialized.current) return;
+    initialized.current = true;
+
+    let poseLandmarker: PoseLandmarker;
+    let animationFrameId: number;
+    let drawingUtils: DrawingUtils | null = null;
+
+    const setupAI = async () => {
+      const vision = await FilesetResolver.forVisionTasks("https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3/wasm");
+      poseLandmarker = await PoseLandmarker.createFromOptions(vision, {
+        baseOptions: {
+          modelAssetPath: `https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task`,
+          delegate: "GPU",
+        },
+        runningMode: "VIDEO",
+        numPoses: 1,
+      });
+
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480, facingMode: "user" } });
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+          videoRef.current.onloadeddata = () => processWebcam();
+        }
+      }
+    };
+
+    const processWebcam = () => {
+      if (!videoRef.current || !canvasRef.current || !poseLandmarker) return;
+      if (videoRef.current.readyState < 2 || videoRef.current.videoWidth === 0) {
+        animationFrameId = requestAnimationFrame(processWebcam);
+        return;
+      }
+
+      if (canvasRef.current.width !== videoRef.current.videoWidth) {
+        canvasRef.current.width = videoRef.current.videoWidth;
+        canvasRef.current.height = videoRef.current.videoHeight;
+        drawingUtils = new DrawingUtils(canvasRef.current.getContext("2d")!);
+      }
+
+      const results = poseLandmarker.detectForVideo(videoRef.current, performance.now());
+      const ctx = canvasRef.current.getContext("2d");
+
+      if (ctx && drawingUtils) {
+        ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+
+        if (results.landmarks && results.landmarks.length > 0) {
+          const lm = results.landmarks[0];
+          
+          drawingUtils.drawConnectors(lm, PoseLandmarker.POSE_CONNECTIONS, { color: "#00FF00", lineWidth: 4 });
+          drawingUtils.drawLandmarks(lm, { color: "#FF0000", lineWidth: 2, radius: 4 });
+
+          const w = window.innerWidth;
+          const h = window.innerHeight;
+
+          poseState.leftWrist = { x: (1 - lm[15].x) * w, y: lm[15].y * h };
+          poseState.rightWrist = { x: (1 - lm[16].x) * w, y: lm[16].y * h };
+          poseState.nose = { x: (1 - lm[0].x) * w, y: lm[0].y * h };
+
+          poseState.isSquatting = lm[0].y > 0.6;
+
+          if ((1 - lm[0].x) < 0.35) poseState.lateralPosition = "LEFT";
+          else if ((1 - lm[0].x) > 0.65) poseState.lateralPosition = "RIGHT";
+          else poseState.lateralPosition = "CENTER";
+
+          // Replay Gesture: Is either wrist raised up near/above the nose?
+          const isLeftUp = lm[15].y < lm[0].y + 0.1;
+          const isRightUp = lm[16].y < lm[0].y + 0.1;
+          poseState.isPeaceSign = isLeftUp || isRightUp;
+
+          poseState.isActive = true;
+        }
+      }
+      animationFrameId = requestAnimationFrame(processWebcam);
+    };
+
+    setupAI();
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+      if (poseLandmarker) poseLandmarker.close();
+      if (videoRef.current?.srcObject) {
+        (videoRef.current.srcObject as MediaStream).getTracks().forEach(t => t.stop());
+      }
+    };
+  }, [canvasRef, videoRef]);
+
+  return null;
+}

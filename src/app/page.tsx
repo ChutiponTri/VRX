@@ -1,65 +1,371 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import React, { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "../../convex/_generated/api";
+import { Id } from "../../convex/_generated/dataModel";
+
+import TouchlessCursor from "../components/TouchlessCursor";
+import DwellButton from "../components/DwellButton";
+import VirtualKeyboard from "../components/VirtualKeyboard";
+import MediaPipeEngine from "../components/engines/MediaPipeEngine";
+import HeartRateScanner from "../components/HeartRateScanner";
+import { hrStore } from "@/components/hrStore";
+
+type FlowStep =
+  | "SELECT_USER"
+  | "CREATE_NAME"
+  | "CREATE_AGE"
+  | "CREATE_PROFILE"
+  | "DASHBOARD"
+  | "SELECT_GAME"
+  | "DIFFICULTY"
+  | "PRE_GAME_RHR";
+
+export default function AppEntry() {
+  const router = useRouter();
+  const [step, setStep] = useState<FlowStep>("SELECT_USER");
+
+  // Data State
+  const [selectedUserId, setSelectedUserId] = useState<Id<"users"> | null>(null);
+  const [selectedGame, setSelectedGame] = useState<string | null>(null);
+  const [selectedDiff, setSelectedDiff] = useState<string | null>(null);
+  const [newName, setNewName] = useState("");
+  const [newAge, setNewAge] = useState("");
+
+  // Convex DB Hooks
+  const users = useQuery(api.users.getAllUsers);
+  const createUser = useMutation(api.users.createUser);
+  const activeUserStats = useQuery(api.users.getUserStats, selectedUserId ? { userId: selectedUserId } : "skip");
+
+  // Is Training Mode Set
+  const [isProMode, setIsProMode] = useState(false);
+  const [isConnecting, setIsConnecting] = useState(false);
+
+  // Toggle Mode (UI Only)
+  const toggleProMode = () => {
+    // Simply toggle the state. We will do the actual hardware connection 
+    // on the /training route where we can force a physical click.
+    setIsProMode((prev) => !prev);
+    
+    // If turning off, we can safely disconnect programmatically
+    if (isProMode) {
+      hrStore.disconnect();
+    }
+  };
+
+  // --- Navigation Handlers ---
+  const goBack = () => {
+    switch (step) {
+      case "CREATE_NAME": setStep("SELECT_USER"); break;
+      case "CREATE_AGE": setStep("CREATE_NAME"); break;
+      case "CREATE_PROFILE": setStep("CREATE_AGE"); break;
+      case "DASHBOARD":
+        setStep("SELECT_USER");
+        setSelectedUserId(null);
+        break;
+      case "SELECT_GAME": setStep("DASHBOARD"); break;
+      case "DIFFICULTY": setStep("SELECT_GAME"); break;
+      case "PRE_GAME_RHR": setStep("DIFFICULTY"); break;
+      default: break;
+    }
+  };
+
+  const handleKeyPress = (key: string) => {
+    if (step === "CREATE_NAME") setNewName((prev) => prev + key);
+    if (step === "CREATE_AGE") setNewAge((prev) => prev + key);
+  };
+  const handleBackspace = () => {
+    if (step === "CREATE_NAME") setNewName((prev) => prev.slice(0, -1));
+    if (step === "CREATE_AGE") setNewAge((prev) => prev.slice(0, -1));
+  };
+  const handleEnter = () => {
+    if (step === "CREATE_NAME" && newName.length > 0) setStep("CREATE_AGE");
+    if (step === "CREATE_AGE" && newAge.length > 0) setStep("CREATE_PROFILE");
+  };
+
+  const handleCreateProfile = async (profile: "General" | "Patient") => {
+    const id = await createUser({ name: newName, age: parseInt(newAge), profile });
+    setSelectedUserId(id);
+    setStep("DASHBOARD");
+  };
+
+  const selectDifficultyAndScan = (difficulty: string) => {
+    setSelectedDiff(difficulty);
+    if (!isProMode) {
+      setStep("PRE_GAME_RHR");
+    } else {
+      if (!selectedUserId || !selectedGame) return;
+
+      // FIX: Use 'difficulty' parameter directly, not 'selectedDiff' state, 
+      // because setState is asynchronous and will be null on this exact render cycle.
+      const mockBpm = 75;
+      const query = new URLSearchParams({
+        userId: selectedUserId,
+        game: selectedGame,
+        diff: difficulty,
+        rhr: mockBpm.toString()
+      });
+
+      // Push to the dedicated training route
+      router.push(`/training?${query.toString()}`);
+
+    }
+  };
+
+  const launchGameRoute = (bpm: number) => {
+    if (!selectedUserId || !selectedGame || !selectedDiff) return;
+
+    // Construct the URL with required game parameters
+    const query = new URLSearchParams({
+      userId: selectedUserId,
+      game: selectedGame,
+      diff: selectedDiff,
+      rhr: bpm.toString()
+    });
+
+    // Push to the dedicated game route
+    router.push(`/game?${query.toString()}`);
+  };
+
+  // --- Heart Rate Stats (Dashboard View) ---
+  const calculateHRStats = (age: number, profile: string) => {
+    const hrMax = Math.round(208 - (0.7 * age));
+    if (profile === "General") {
+      const targetMin = Math.round(0.77 * hrMax);
+      const targetMax = Math.round(0.95 * hrMax);
+      return `HR Max: ${hrMax} BPM | Target (Hard): ${targetMin} - ${targetMax} BPM`;
+    }
+    return `HR Max: ${hrMax} BPM | (Target will calculate after Pre-Game Scan)`;
+  };
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <>
+      {/* Hide Hand Tracker when running the Face/Heart Rate Scanner */}
+      {step !== "PRE_GAME_RHR" && (
+        <>
+          <MediaPipeEngine />
+          <TouchlessCursor />
+        </>
+      )}
+
+      <main className="min-h-screen bg-slate-950 text-white flex flex-col items-center justify-center p-8">
+
+        {/* Universal Back Button */}
+        {step !== "SELECT_USER" && step !== "PRE_GAME_RHR" && (
+          <div className="fixed top-8 left-8 z-30">
+            <DwellButton
+              onClick={goBack}
+              dwellTimeMs={1000}
+              className="w-32 h-16 bg-slate-800 border-2 border-slate-600 text-xl font-bold text-slate-300 hover:border-cyan-400"
+              activeColor="bg-slate-600"
+            >
+              ← BACK
+            </DwellButton>
+          </div>
+        )}
+
+        {/* TOP RIGHT: Pro Training Mode Toggle */}
+        {step !== "PRE_GAME_RHR" && (
+          <div className="fixed top-8 right-75 z-30">
+            <DwellButton
+              onClick={toggleProMode}
+              disabled={isConnecting}
+              dwellTimeMs={1500}
+              className={`w-56 h-16 border-2 flex items-center justify-center rounded-xl text-lg font-bold transition-all duration-300 ${isConnecting
+                  ? "bg-yellow-900/50 border-yellow-500 text-yellow-400 animate-pulse"
+                  : isProMode
+                    ? "bg-blue-900/40 border-blue-400 text-blue-300 shadow-[0_0_20px_rgba(59,130,246,0.4)]"
+                    : "bg-slate-800 border-slate-600 text-slate-400 hover:border-blue-500 hover:text-blue-200"
+                }`}
+              activeColor={isProMode ? "bg-blue-500" : "bg-slate-500"}
+            >
+              {isConnecting
+                ? "CONNECTING..."
+                : isProMode
+                  ? "⚡ PRO MODE: ON"
+                  : "PRO MODE: OFF"}
+            </DwellButton>
+          </div>
+        )}
+
+        <div className="absolute top-10 text-center">
+          <h1 className="text-5xl font-extrabold tracking-widest text-transparent bg-clip-text bg-linear-to-r from-cyan-400 to-blue-600 mb-2">
+            VRX
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+          {step !== "PRE_GAME_RHR" && (
+            <p className="text-slate-400 text-lg uppercase tracking-wider">Web-Based Fitness AI</p>
+          )}
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+
+        {/* STEP 1: Select User or Create New */}
+        {step === "SELECT_USER" && (
+          <div className="w-full max-w-5xl flex flex-col items-center">
+            <h2 className="text-3xl mb-8">WHO IS PLAYING?</h2>
+            <div className="flex gap-6 flex-wrap justify-center mb-12">
+              {users?.map((user) => (
+                <DwellButton
+                  key={user._id}
+                  onClick={() => { setSelectedUserId(user._id); setStep("DASHBOARD"); }}
+                  className="w-48 h-32 bg-slate-800 border-2 border-slate-600 flex flex-col items-center justify-center hover:border-cyan-400"
+                  activeColor="bg-cyan-500"
+                >
+                  <span className="text-2xl font-bold text-cyan-400">{user.name}</span>
+                  <span className="text-slate-400">Age: {user.age}</span>
+                </DwellButton>
+              ))}
+            </div>
+            <DwellButton
+              onClick={() => { setNewName(""); setNewAge(""); setStep("CREATE_NAME"); }}
+              className="w-80 h-20 bg-emerald-900/50 border-2 border-emerald-500 text-xl font-bold hover:border-emerald-400"
+              activeColor="bg-emerald-500"
+            >
+              + CREATE NEW PLAYER
+            </DwellButton>
+          </div>
+        )}
+
+        {/* STEPS: Create Flow */}
+        {(step === "CREATE_NAME" || step === "CREATE_AGE") && (
+          <div className="w-full max-w-3xl flex flex-col items-center">
+            <h2 className="text-3xl mb-8">{step === "CREATE_NAME" ? "ENTER NEW NAME" : "ENTER AGE"}</h2>
+            <div className="text-5xl font-mono bg-slate-900 border-b-4 border-cyan-500 min-w-[300px] text-center p-4 mb-12 min-h-[80px]">
+              {step === "CREATE_NAME" ? newName : newAge}<span className="animate-pulse">_</span>
+            </div>
+            <VirtualKeyboard mode={step === "CREATE_NAME" ? "text" : "number"} onKeyPress={handleKeyPress} onBackspace={handleBackspace} onEnter={handleEnter} />
+          </div>
+        )}
+
+        {step === "CREATE_PROFILE" && (
+          <div className="flex flex-col items-center">
+            <h2 className="text-3xl mb-8 uppercase">Select Health Profile</h2>
+            <div className="flex gap-8">
+              <DwellButton onClick={() => handleCreateProfile("General")} className="w-80 h-64 bg-slate-800 border-2 border-cyan-600 hover:border-cyan-400 p-8 text-left" activeColor="bg-cyan-500">
+                <h3 className="text-3xl font-bold text-cyan-400 mb-4">GENERAL</h3>
+                <p className="text-slate-300">Standard difficulty curves for healthy individuals.</p>
+              </DwellButton>
+              <DwellButton onClick={() => handleCreateProfile("Patient")} className="w-80 h-64 bg-slate-800 border-2 border-purple-600 hover:border-purple-400 p-8 text-left" activeColor="bg-purple-500">
+                <h3 className="text-3xl font-bold text-purple-400 mb-4">PATIENT</h3>
+                <p className="text-slate-300">Safer exertion limits using Heart Rate Reserve.</p>
+              </DwellButton>
+            </div>
+          </div>
+        )}
+
+        {/* DASHBOARD */}
+        {step === "DASHBOARD" && activeUserStats?.user && (
+          <div className="w-full max-w-5xl flex flex-col items-center">
+            <h2 className="text-4xl font-bold text-cyan-400 mb-2">WELCOME BACK, {activeUserStats.user.name.toUpperCase()}</h2>
+            <div className="bg-slate-900 border border-slate-700 p-6 rounded-xl mb-12 w-full max-w-2xl text-center shadow-lg">
+              <p className="text-lg text-slate-300 mb-2">Profile: {activeUserStats.user.profile} | Age: {activeUserStats.user.age}</p>
+              <div className="bg-slate-950 p-4 rounded-lg border border-slate-800 mt-4">
+                <p className="text-xl font-mono text-emerald-400">
+                  {calculateHRStats(activeUserStats.user.age, activeUserStats.user.profile)}
+                </p>
+              </div>
+              <div className="mt-6 border-t border-slate-700 pt-4">
+                <h4 className="text-sm text-slate-500 mb-2">RECENT SCORES</h4>
+                {activeUserStats.scores.length === 0 ? <p className="text-slate-400">No games played yet.</p> : (
+                  <div className="flex justify-center gap-4 flex-wrap">
+                    {activeUserStats.scores.map(s => (
+                      <span key={s._id} className="bg-slate-800 px-3 py-1 rounded text-sm text-yellow-400 border border-slate-600">
+                        {s.gameName} ({s.mode}): {s.score}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+            <DwellButton onClick={() => setStep("SELECT_GAME")} className="w-96 h-24 bg-cyan-900 border-2 border-cyan-500 text-3xl font-bold hover:border-cyan-400" activeColor="bg-cyan-500">
+              SELECT GAME
+            </DwellButton>
+          </div>
+        )}
+
+        {/* GAME SELECTION */}
+        {step === "SELECT_GAME" && (
+          <div className="w-full max-w-6xl flex flex-col items-center mt-12">
+            <h2 className="text-3xl mb-8 uppercase">Choose Your Workout</h2>
+            <div className="flex gap-6 w-full justify-center">
+              <DwellButton onClick={() => { setSelectedGame("Muay Thai Arena"); setStep("DIFFICULTY"); }} className="w-72 h-64 bg-slate-800 border-2 border-red-600/50 hover:border-red-500 p-6 flex flex-col justify-center items-center" activeColor="bg-red-500">
+                <h3 className="text-2xl font-bold text-red-400 mb-2 text-center">MUAY THAI ARENA</h3>
+                <p className="text-slate-400 text-center text-sm">Focus: Arm actions, Punches, Targets</p>
+              </DwellButton>
+              <DwellButton onClick={() => { setSelectedGame("Squat Surfer"); setStep("DIFFICULTY"); }} className="w-72 h-64 bg-slate-800 border-2 border-blue-600/50 hover:border-blue-500 p-6 flex flex-col justify-center items-center" activeColor="bg-blue-500">
+                <h3 className="text-2xl font-bold text-blue-400 mb-2 text-center">SQUAT SURFER</h3>
+                <p className="text-slate-400 text-center text-sm">Focus: Lateral steps, Squats, Dodging</p>
+              </DwellButton>
+              <DwellButton onClick={() => { setSelectedGame("Rich Or Mess"); setStep("DIFFICULTY"); }} className="w-72 h-64 bg-slate-800 border-2 border-yellow-600/50 hover:border-yellow-500 p-6 flex flex-col justify-center items-center" activeColor="bg-yellow-500">
+                <h3 className="text-2xl font-bold text-yellow-400 mb-2 text-center">RICH OR MESS</h3>
+                <p className="text-slate-400 text-center text-sm">Focus: Core control, Catch & Dodge</p>
+              </DwellButton>
+              <DwellButton onClick={() => { setSelectedGame("RPG Fit Quest"); setStep("DIFFICULTY"); }} className="w-72 h-64 bg-slate-800 border-2 border-green-600/50 hover:border-green-500 p-6 flex flex-col justify-center items-center" activeColor="bg-green-500">
+                <h3 className="text-2xl font-bold text-green-400 mb-2 text-center">RPG FIT QUEST</h3>
+                <p className="text-slate-400 text-center text-sm">Focus: Walking, Lateral Raise, Squat</p>
+              </DwellButton>
+            </div>
+
+            {/* FitQuest Special Button */}
+            <div className="mt-12 gap-6 flex justify-center w-full">
+              <DwellButton
+                onClick={() => { setSelectedGame("FitQuest"); setStep("DIFFICULTY"); }}
+                className="w-32 h-32 rounded-full bg-slate-900 border-4 border-cyan-600/50 hover:border-cyan-400 flex flex-col justify-center items-center shadow-[0_0_20px_rgba(0,229,255,0.3)] transition-all"
+                activeColor="bg-cyan-500"
+              >
+                <span className="text-4xl mb-1">🏃</span>
+                <span className="text-xs font-bold text-cyan-400 tracking-widest">FITQUEST</span>
+              </DwellButton>
+
+              {/* <DwellButton
+                onClick={() => { setSelectedGame("RPG Fit Quest"); setStep("DIFFICULTY"); }}
+                className="w-32 h-32 rounded-full bg-slate-900 border-4 border-cyan-600/50 hover:border-cyan-400 flex flex-col justify-center items-center shadow-[0_0_20px_rgba(0,229,255,0.3)] transition-all"
+                activeColor="bg-cyan-500"
+              >
+                <span className="text-4xl mb-1">🏋️</span>
+                <span className="text-xs font-bold text-cyan-400 tracking-widest">RPG Fit Quest</span>
+              </DwellButton> */}
+            </div>
+          </div>
+        )}
+
+        {/* DIFFICULTY */}
+        {step === "DIFFICULTY" && (
+          <div className="w-full max-w-5xl flex flex-col items-center mt-12">
+            <h2 className="text-3xl mb-2 uppercase">Select Intensity</h2>
+            <p className="text-slate-400 mb-8">Game: <span className="text-cyan-400">{selectedGame}</span></p>
+            <div className="flex gap-6 w-full justify-center">
+              <DwellButton onClick={() => selectDifficultyAndScan("Easy")} className="w-72 h-48 bg-slate-800 border-2 border-green-600/50 hover:border-green-400 flex flex-col justify-center items-center" activeColor="bg-green-500">
+                <h3 className="text-3xl font-bold text-green-400 text-center leading-tight">START ROUND 1<br /><span className="text-xl">(Easy)</span></h3>
+              </DwellButton>
+              <DwellButton onClick={() => selectDifficultyAndScan("Medium")} className="w-72 h-48 bg-slate-800 border-2 border-yellow-600/50 hover:border-yellow-400 flex flex-col justify-center items-center" activeColor="bg-yellow-500">
+                <h3 className="text-3xl font-bold text-yellow-400 text-center leading-tight">START ROUND 2<br /><span className="text-xl">(Medium)</span></h3>
+              </DwellButton>
+              <DwellButton onClick={() => selectDifficultyAndScan("Hard")} className="w-72 h-48 bg-slate-800 border-2 border-red-600/50 hover:border-red-400 flex flex-col justify-center items-center" activeColor="bg-red-500">
+                <h3 className="text-3xl font-bold text-red-400 text-center leading-tight">START ROUND 3<br /><span className="text-xl">(Hard)</span></h3>
+              </DwellButton>
+            </div>
+          </div>
+        )}
+
+        {/* PRE-GAME RHR SCANNER */}
+        {step === "PRE_GAME_RHR" && (
+          <div className="w-full animate-fade-in flex flex-col items-center">
+            <h2 className="text-3xl mb-6 text-yellow-400">PRE-GAME VITALS CHECK</h2>
+            <p className="text-slate-400 mb-8 max-w-lg text-center">
+              Capturing baseline Heart Rate before beginning <span className="text-cyan-400">{selectedGame}</span> ({selectedDiff}). Sit still and face the camera.
+            </p>
+            <HeartRateScanner onComplete={launchGameRoute} />
+
+            <button onClick={() => launchGameRoute(75)} className="mt-8 text-slate-500 underline text-sm">
+              Skip & Use Mock HR (Test Mode)
+            </button>
+            <button onClick={goBack} className="mt-4 text-slate-500 hover:text-white font-bold text-lg">
+              Cancel Setup
+            </button>
+          </div>
+        )}
       </main>
-    </div>
+    </>
   );
 }
