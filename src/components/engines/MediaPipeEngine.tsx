@@ -23,7 +23,7 @@ export default function MediaPipeEngine() {
   useEffect(() => {
     if (typeof window !== "undefined") {
       // 240px (panel width) + 40px (padding) = 280px from the right edge
-      setPosition({ x: window.innerWidth - 280, y: 32 });
+      setPosition({ x: window.innerWidth - 265, y: 112 });
     }
   }, []);
 

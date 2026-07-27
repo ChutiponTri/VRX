@@ -168,7 +168,7 @@ export default function AppEntry() {
 
         {/* TOP RIGHT: Pro Training Mode Toggle */}
         {step !== "PRE_GAME_RHR" && (
-          <div className="fixed top-8 right-75 z-30">
+          <div className="fixed top-8 right-8 z-30">
             <DwellButton
               onClick={toggleProMode}
               disabled={isConnecting}
