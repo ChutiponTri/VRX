@@ -344,13 +344,13 @@ export default function TrainingArena({searchParams}: {searchParams : {
     <div className="relative w-full h-full min-h-screen bg-slate-950 overflow-hidden font-sans select-none text-white">
 
       {/* Global Touchless Cursor - Active on all screens */}
-      {phase === "AWAITING_CONNECTION" || phase === "RESULTS" &&
+      {(phase === "AWAITING_CONNECTION" || phase === "RESULTS") && (
         <>
 
           <MediaPipeEngine />
           <TouchlessCursor />
         </>
-      }
+      )}
 
       {/* PHASE 1: HARDWARE CONNECTION */}
       {phase === "AWAITING_CONNECTION" && (
