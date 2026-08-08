@@ -96,3 +96,41 @@ export const saveTrainingSession = mutation({
     });
   },
 });
+
+// Fetch just the metadata for the list view (Saves bandwidth!)
+export const getTrainingSessionsSummary = query({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    const sessions = await ctx.db
+      .query("training_sessions")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .order("desc")
+      .take(20);
+    
+    // Server-side mapping to strip out the heavy hrTimeline array
+    return sessions.map((session) => {
+      const { hrTimeline, ...summary } = session;
+      return summary;
+    });
+  },
+});
+
+// Fetch the full document ONLY when the user wants to chart/export it
+export const getSessionFullDetails = query({
+  args: { sessionId: v.id("training_sessions") },
+  handler: async (ctx, args) => {
+    return await ctx.db.get(args.sessionId);
+  },
+});
+
+// Fetch Normal Arcade Sessions
+export const getNormalSessions = query({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("scores")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .order("desc")
+      .take(50); // Adjust limit as needed
+  },
+});
