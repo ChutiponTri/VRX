@@ -6,11 +6,13 @@ import { poseState } from "@/components/poseStore";
 
 interface GameProps {
   onGameOver: (score: number) => void;
+  initialScore?: number; // รับคะแนนสะสมต่อเนื่องจากรอบที่แล้ว
 }
 
-export default function RichOrMess({ onGameOver }: GameProps) {
+export default function RichOrMess({ onGameOver, initialScore = 0 }: GameProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const scoreRef = useRef<HTMLDivElement>(null);
+  const timerRef = useRef<HTMLDivElement>(null);
   const searchParams = useSearchParams();
   const difficultyStr = searchParams.get("diff") || "Medium";
 
@@ -22,8 +24,11 @@ export default function RichOrMess({ onGameOver }: GameProps) {
 
     let rafId: number;
     let isRunning = true;
+    
+    const GAME_DURATION = 60000; // เวลาเล่น 60 วินาที
+    let startTime: number | null = null;
 
-    // --- Difficulty Adjustments ---
+    // --- Difficulty Adjustments (คงความเร็วปกติ ไม่ปรับลดลง) ---
     let spawnInterval = 1200; // ms between spawns
     let fallSpeedMultiplier = 1.0;
     
@@ -57,23 +62,25 @@ export default function RichOrMess({ onGameOver }: GameProps) {
     const sounds = {
       money: () => playSfx(800, 'sine', 0.1),
       gold: () => { playSfx(1000, 'sine', 0.1); setTimeout(() => playSfx(1200, 'sine', 0.1), 50); },
-      fail: () => playSfx(100, 'sawtooth', 0.6)
+      fail: () => playSfx(150, 'sawtooth', 0.4),
+      squat: () => playSfx(350, 'triangle', 0.2)
     };
 
     // --- Game Entities ---
     class Item {
       x: number; y: number; speed: number; type: string; emoji: string; value: number; size: number;
       constructor() {
-        this.x = Math.random(); // Normalized width (0 to 1)
-        this.y = -0.1; // Start slightly above screen
-        // Base fall speed + random variance, multiplied by difficulty
+        this.x = Math.random(); 
+        this.y = -0.1; 
+        
+        // ความเร็วปกติ (ไม่ช้าเกินไป)
         this.speed = (0.35 + Math.random() * 0.4) * fallSpeedMultiplier; 
         
         const rand = Math.random();
         if (rand < 0.1) {
-          this.type = 'gold'; this.emoji = '💰'; this.value = 10000; this.size = 80;
+          this.type = 'gold'; this.emoji = '💰'; this.value = 50; this.size = 80;
         } else if (rand < 0.7) {
-          this.type = 'money'; this.emoji = '💵'; this.value = Math.floor(Math.random() * 980) + 20; this.size = 65;
+          this.type = 'money'; this.emoji = '💵'; this.value = (Math.floor(Math.random() * 3) + 1) * 10; this.size = 65;
         } else {
           this.type = 'poop'; this.emoji = '💩'; this.value = 0; this.size = 70;
         }
@@ -81,17 +88,42 @@ export default function RichOrMess({ onGameOver }: GameProps) {
     }
 
     const state = {
-      score: 0,
+      score: initialScore,
       lastSpawn: 0,
       items: [] as Item[],
-      floatingTexts: [] as { x: number, y: number, text: string, color: string, life: number }[]
+      floatingTexts: [] as { x: number, y: number, text: string, color: string, life: number }[],
+      // ตัวแปรจับระบบ Squat จาก SquatSurfer
+      baselineNoseY: 0,
+      wasSquatting: false,
+      isCurrentlySquatting: false
     };
+
+    if (scoreRef.current) {
+      scoreRef.current.innerText = `฿${state.score.toLocaleString()}`;
+    }
 
     let lastTime = performance.now();
 
     // --- Main Loop ---
     const animate = (time: number) => {
       if (!isRunning) return;
+      if (startTime === null) startTime = time;
+      
+      // 0. Time Tracking
+      const elapsed = time - startTime;
+      const remainingTime = Math.max(0, GAME_DURATION - elapsed);
+      const secondsLeft = Math.ceil(remainingTime / 1000);
+
+      if (timerRef.current) {
+        timerRef.current.innerText = `${secondsLeft}s`;
+      }
+
+      // Check Time Over
+      if (remainingTime <= 0) {
+        isRunning = false;
+        onGameOver(state.score);
+        return;
+      }
       
       const w = window.innerWidth;
       const h = window.innerHeight;
@@ -103,37 +135,59 @@ export default function RichOrMess({ onGameOver }: GameProps) {
 
       ctx.clearRect(0, 0, w, h);
 
+      // --- Squat Detection Logic (SquatSurfer Style) ---
+      if (!state.baselineNoseY && poseState.nose.y > 0) {
+        state.baselineNoseY = poseState.nose.y;
+      }
+      
+      const squatThreshold = h * 0.15;
+      const isSquattingNow = poseState.nose.y > 0 && poseState.nose.y > (state.baselineNoseY + squatThreshold);
+
+      if (isSquattingNow && !state.wasSquatting) {
+        sounds.squat();
+      }
+      state.wasSquatting = isSquattingNow;
+      state.isCurrentlySquatting = isSquattingNow;
+
+      if (poseState.nose.y > 0 && !isSquattingNow) {
+        state.baselineNoseY = (state.baselineNoseY * 0.95) + (poseState.nose.y * 0.05);
+      }
+
       // 1. Spawner Logic (Accelerates slightly over time)
       if (time - state.lastSpawn > spawnInterval) {
         state.items.push(new Item());
         state.lastSpawn = time;
-        spawnInterval = Math.max(300, spawnInterval - 5); // Slowly gets harder
+        spawnInterval = Math.max(300, spawnInterval - 5); 
       }
 
-      // 2. Basket Logic
-      // Calculate basket X using the midpoint between the two wrists
-      let basketX = w / 2; // Default center
+      // 2. Basket Logic & Dynamic Squat Scaling
+      let basketX = w / 2; 
       if (poseState.leftWrist.x > 0 && poseState.rightWrist.x > 0) {
         basketX = (poseState.leftWrist.x + poseState.rightWrist.x) / 2;
       }
       const basketY = h * 0.85;
 
+      // ปรับระยะขอบเขตรับไอเทม (ขยาย 1.6 เท่าเมื่อย่อ Squat)
+      const baseBasketWidthRatio = 0.12; 
+      const currentWidthRatio = state.isCurrentlySquatting ? baseBasketWidthRatio * 1.6 : baseBasketWidthRatio;
+
       // Draw Basket
       ctx.save();
-      ctx.font = "130px Arial";
+      ctx.font = state.isCurrentlySquatting ? "160px Arial" : "130px Arial";
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.shadowBlur = 30;
-      ctx.shadowColor = "rgba(0,0,0,0.5)";
+      ctx.shadowBlur = state.isCurrentlySquatting ? 45 : 30;
+      ctx.shadowColor = state.isCurrentlySquatting ? "rgba(74, 222, 128, 0.8)" : "rgba(0,0,0,0.5)";
       ctx.fillText("🧺", basketX, basketY);
       
       // Basket Floor Glow
-      const grad = ctx.createRadialGradient(basketX, basketY + 50, 5, basketX, basketY + 50, 100);
-      grad.addColorStop(0, "rgba(234, 179, 8, 0.4)");
+      const glowWidth = w * currentWidthRatio;
+      const grad = ctx.createRadialGradient(basketX, basketY + 50, 5, basketX, basketY + 50, glowWidth);
+      grad.addColorStop(0, state.isCurrentlySquatting ? "rgba(74, 222, 128, 0.6)" : "rgba(234, 179, 8, 0.4)");
       grad.addColorStop(1, "transparent");
       ctx.fillStyle = grad;
       ctx.beginPath();
-      ctx.ellipse(basketX, basketY + 50, 100, 25, 0, 0, Math.PI * 2);
+      ctx.ellipse(basketX, basketY + 50, glowWidth, 25, 0, 0, Math.PI * 2);
       ctx.fill();
       ctx.restore();
 
@@ -141,7 +195,6 @@ export default function RichOrMess({ onGameOver }: GameProps) {
       for (let i = state.items.length - 1; i >= 0; i--) {
         const item = state.items[i];
         
-        // Convert normalized speed to screen pixels per second
         item.y += (item.speed * dt); 
 
         const itemScreenX = item.x * w;
@@ -157,12 +210,14 @@ export default function RichOrMess({ onGameOver }: GameProps) {
         const dx = Math.abs(itemScreenX - basketX);
         const dy = Math.abs(itemScreenY - basketY);
 
-        if (dy < h * 0.06 && dx < w * 0.08) {
+        if (dy < h * 0.07 && dx < w * currentWidthRatio) {
           if (item.type === 'poop') {
             sounds.fail();
-            isRunning = false;
-            onGameOver(state.score);
-            return; // Exit loop
+            const penalty = 20;
+            state.score = Math.max(0, state.score - penalty);
+            if (scoreRef.current) scoreRef.current.innerText = `฿${state.score.toLocaleString()}`;
+            
+            state.floatingTexts.push({ x: itemScreenX, y: basketY, text: `-฿${penalty}`, color: '#ef4444', life: 1.0 });
           } else {
             state.score += item.value;
             if (scoreRef.current) scoreRef.current.innerText = `฿${state.score.toLocaleString()}`;
@@ -179,7 +234,6 @@ export default function RichOrMess({ onGameOver }: GameProps) {
           continue;
         }
 
-        // Clean up if it falls off screen
         if (item.y > 1.1) state.items.splice(i, 1);
       }
 
@@ -187,7 +241,7 @@ export default function RichOrMess({ onGameOver }: GameProps) {
       for (let i = state.floatingTexts.length - 1; i >= 0; i--) {
         const ft = state.floatingTexts[i];
         ft.life -= dt * 1.5;
-        ft.y -= h * 0.1 * dt; // Float up
+        ft.y -= h * 0.1 * dt;
 
         ctx.globalAlpha = Math.max(0, ft.life);
         ctx.fillStyle = ft.color;
@@ -209,7 +263,7 @@ export default function RichOrMess({ onGameOver }: GameProps) {
       cancelAnimationFrame(rafId);
       if (audioCtx && audioCtx.state !== 'closed') audioCtx.close();
     };
-  }, [difficultyStr, onGameOver]);
+  }, [difficultyStr, initialScore, onGameOver]);
 
   return (
     <>
@@ -217,10 +271,19 @@ export default function RichOrMess({ onGameOver }: GameProps) {
 
       {/* Rich or Mess HUD */}
       <div className="absolute top-4 left-4 z-30 flex flex-col gap-4 pointer-events-none">
+        
+        {/* กล่องแสดงเวลา (Timer) */}
+        <div className="bg-slate-900/80 border border-blue-500/50 rounded-xl p-4 min-w-[150px] shadow-lg backdrop-blur-md">
+          <div className="text-xs text-blue-400 font-bold tracking-widest uppercase mb-1">เวลาที่เหลือ</div>
+          <div ref={timerRef} className="text-4xl font-black text-white">60s</div>
+        </div>
+
+        {/* กล่องแสดงคะแนน (Score) */}
         <div className="bg-slate-900/80 border border-yellow-500/50 rounded-xl p-6 min-w-[250px] shadow-lg backdrop-blur-md">
           <div className="text-xs text-yellow-400 font-bold tracking-widest uppercase mb-1">ยอดเงินสะสม</div>
-          <div ref={scoreRef} className="text-5xl font-black text-white">฿0</div>
+          <div ref={scoreRef} className="text-5xl font-black text-white">฿{initialScore.toLocaleString()}</div>
         </div>
+        
       </div>
     </>
   );

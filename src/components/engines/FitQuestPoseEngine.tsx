@@ -7,10 +7,12 @@ import { poseState } from "../poseStore";
 interface EngineProps {
   videoRef: React.RefObject<HTMLVideoElement | null>;
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
+  onReady?: () => void; // <-- เพิ่มตรงนี้ค่ะ
 }
 
-export default function FitQuestPoseEngine({ videoRef, canvasRef }: EngineProps) {
+export default function FitQuestPoseEngine({ videoRef, canvasRef, onReady }: EngineProps) {
   const initialized = useRef(false);
+  const hasTriggeredReady = useRef(false);
 
   useEffect(() => {
     if (initialized.current) return;
@@ -56,8 +58,14 @@ export default function FitQuestPoseEngine({ videoRef, canvasRef }: EngineProps)
       const results = poseLandmarker.detectForVideo(videoRef.current, performance.now());
       const ctx = canvasRef.current.getContext("2d");
 
+      if (!hasTriggeredReady.current && onReady) {
+        hasTriggeredReady.current = true;
+        onReady();
+      }
+
       if (ctx && drawingUtils) {
         ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+
 
         if (results.landmarks && results.landmarks.length > 0) {
           const lm = results.landmarks[0];
@@ -98,7 +106,7 @@ export default function FitQuestPoseEngine({ videoRef, canvasRef }: EngineProps)
         (videoRef.current.srcObject as MediaStream).getTracks().forEach(t => t.stop());
       }
     };
-  }, [canvasRef, videoRef]);
+  }, [canvasRef, videoRef, onReady]);
 
   return null;
 }

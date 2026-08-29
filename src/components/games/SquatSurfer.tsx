@@ -22,7 +22,7 @@ export default function SquatSurfer({ onGameOver }: GameProps) {
 
     let rafId: number; 
 
-    // --- Audio System ---
+    // --- Sound FX System ---
     let audioCtx: AudioContext | null = null;
     const playSynthSound = (type: string) => {
       try {
@@ -36,76 +36,82 @@ export default function SquatSurfer({ onGameOver }: GameProps) {
         const now = audioCtx.currentTime;
 
         if (type === 'coin') {
-          osc.type = 'triangle';
-          osc.frequency.setValueAtTime(659.25, now);
-          osc.frequency.setValueAtTime(987.77, now + 0.07);
-          gain.gain.setValueAtTime(0.12, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
-          osc.start(now); osc.stop(now + 0.2);
-        } else if (type === 'jump') {
           osc.type = 'sine';
-          osc.frequency.setValueAtTime(200, now);
-          osc.frequency.exponentialRampToValueAtTime(700, now + 0.18);
-          gain.gain.setValueAtTime(0.18, now);
+          osc.frequency.setValueAtTime(659.25, now);
+          gain.gain.setValueAtTime(0.08, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+          osc.start(now); osc.stop(now + 0.15);
+        } else if (type === 'jump') {
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(250, now);
+          osc.frequency.exponentialRampToValueAtTime(500, now + 0.18);
+          gain.gain.setValueAtTime(0.12, now);
           gain.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
           osc.start(now); osc.stop(now + 0.22);
         } else if (type === 'squat') {
-          osc.type = 'sine';
-          osc.frequency.setValueAtTime(450, now);
-          osc.frequency.exponentialRampToValueAtTime(100, now + 0.22);
-          gain.gain.setValueAtTime(0.18, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.26);
-          osc.start(now); osc.stop(now + 0.26);
+          osc.type = 'triangle';
+          osc.frequency.setValueAtTime(350, now);
+          osc.frequency.exponentialRampToValueAtTime(150, now + 0.2);
+          gain.gain.setValueAtTime(0.12, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.24);
+          osc.start(now); osc.stop(now + 0.24);
         } else if (type === 'crash') {
           osc.type = 'sawtooth';
-          osc.frequency.setValueAtTime(150, now);
-          osc.frequency.linearRampToValueAtTime(20, now + 0.6);
-          gain.gain.setValueAtTime(0.35, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.6);
-          osc.start(now); osc.stop(now + 0.6);
+          osc.frequency.setValueAtTime(100, now);
+          gain.gain.setValueAtTime(0.3, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.4);
+          osc.start(now); osc.stop(now + 0.4);
         } else if (type === 'side') {
           osc.type = 'sine';
-          osc.frequency.setValueAtTime(350, now);
-          osc.frequency.linearRampToValueAtTime(450, now + 0.08);
-          gain.gain.setValueAtTime(0.08, now);
-          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.12);
-          osc.start(now); osc.stop(now + 0.12);
+          osc.frequency.setValueAtTime(300, now);
+          gain.gain.setValueAtTime(0.05, now);
+          gain.gain.exponentialRampToValueAtTime(0.001, now + 0.08);
+          osc.start(now); osc.stop(now + 0.08);
         }
       } catch(e) {}
     };
 
-    // --- Three.js Setup ---
+    // --- Three.js Engine Setup ---
     const scene = new THREE.Scene();
-    scene.fog = new THREE.FogExp2(0x0f172a, 0.015);
+    scene.background = new THREE.Color(0xb3e5fc); 
+    scene.fog = new THREE.FogExp2(0xb3e5fc, 0.008); 
 
-    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 120);
-    camera.position.set(0, 4.2, 7.0);
-    camera.lookAt(0, 1.4, -5);
+    const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 200);
+    camera.position.set(0, 3.2, 5.5); 
+    camera.lookAt(0, 1.2, -5);
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
     renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.shadowMap.enabled = true;
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     containerRef.current.appendChild(renderer.domElement);
 
-    scene.add(new THREE.AmbientLight(0x1e1b4b, 1.4));
-    const dirLight = new THREE.DirectionalLight(0xa78bfa, 0.9);
-    dirLight.position.set(5, 15, 5);
-    dirLight.castShadow = true;
-    scene.add(dirLight);
-    const neonLight = new THREE.PointLight(0xec4899, 2.0, 40);
-    neonLight.position.set(0, 6, -10);
-    scene.add(neonLight);
+    // --- Lighting ---
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.95);
+    scene.add(ambientLight);
 
-    const matTrack = new THREE.MeshStandardMaterial({ color: 0x151233, roughness: 0.8 });
-    const matTrain = new THREE.MeshStandardMaterial({ color: 0xdb2777, emissive: 0x610c3b, roughness: 0.3 });
-    const matBarricadeHigh = new THREE.MeshStandardMaterial({ color: 0xf43f5e, roughness: 0.4 });
-    const matBarricadeLow = new THREE.MeshStandardMaterial({ color: 0xf59e0b, roughness: 0.4 });
-    const matCoin = new THREE.MeshStandardMaterial({ color: 0xfacc15, metalness: 0.9, roughness: 0.1 });
-    const matPlayer = new THREE.MeshStandardMaterial({ color: 0x8b5cf6, roughness: 0.2 });
+    const sunLight = new THREE.DirectionalLight(0xfff8e7, 1.1);
+    sunLight.position.set(15, 25, 10);
+    sunLight.castShadow = true;
+    scene.add(sunLight);
+
+    // --- Materials ---
+    const matMeadow = new THREE.MeshStandardMaterial({ color: 0x81c784, roughness: 0.8 }); 
+    const matPath = new THREE.MeshStandardMaterial({ color: 0xffcc80, roughness: 0.7 }); 
+    const matPathLine = new THREE.MeshBasicMaterial({ color: 0xffb74d, transparent: true, opacity: 0.6 }); 
+    const matTruck = new THREE.MeshStandardMaterial({ color: 0xef5350, roughness: 0.5 }); 
+    const matTruckCab = new THREE.MeshStandardMaterial({ color: 0xf5f5f5, roughness: 0.5 }); 
+    const matHighFence = new THREE.MeshStandardMaterial({ color: 0x795548, roughness: 0.7 }); 
+    const matLowBush = new THREE.MeshStandardMaterial({ color: 0x388e3c, roughness: 0.9 }); 
+    const matCoin = new THREE.MeshStandardMaterial({ color: 0xffca28, metalness: 0.8, roughness: 0.2 });
+    const matPlayerBody = new THREE.MeshStandardMaterial({ color: 0x1e88e5, roughness: 0.5 }); 
+    const matPlayerAcc = new THREE.MeshStandardMaterial({ color: 0xffa726, roughness: 0.3 }); 
 
     const clock = new THREE.Clock();
-    const laneWidth = 2.5;
+    const laneWidth = 2.6;
     const trackLength = 100;
+    const numSegments = 4;
     
     let trackSegments: THREE.Group[] = [];
     let obstacles: any[] = [];
@@ -117,6 +123,7 @@ export default function SquatSurfer({ onGameOver }: GameProps) {
       distance: 0,
       speed: 14,
       speedMultiplier: 1.0,
+      maxSpeedMultiplier: 1.7, 
       isGameOver: false,
       currentLane: 0,
       playerState: "run" as "run" | "jump" | "slide",
@@ -125,108 +132,166 @@ export default function SquatSurfer({ onGameOver }: GameProps) {
       playerSlideTime: 0,
       wasSquatting: false,
       wasJumping: false,
-      baselineNoseY: 0
+      baselineNoseY: 0,
+      noseFilterY: 0
     };
 
-    // --- World Building ---
+    // --- World Creation ---
     const buildTrack = (zPos: number) => {
       const group = new THREE.Group();
-      const floor = new THREE.Mesh(new THREE.BoxGeometry(laneWidth * 3 + 1, 0.2, trackLength), matTrack);
-      floor.receiveShadow = true;
-      group.add(floor);
       
-      for (let j = -trackLength/2; j < trackLength/2; j += 15) {
-        const pMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, emissive: 0x1e1b4b });
-        const pl = new THREE.Mesh(new THREE.BoxGeometry(0.4, 4, 0.4), pMat);
-        pl.position.set(-(laneWidth * 1.5 + 0.8), 2, j);
-        const pr = pl.clone();
-        pr.position.x = (laneWidth * 1.5 + 0.8);
-        group.add(pl, pr);
+      const meadow = new THREE.Mesh(new THREE.BoxGeometry(laneWidth * 12, 0.1, trackLength), matMeadow);
+      meadow.position.y = -0.05;
+      meadow.receiveShadow = true;
+      group.add(meadow);
+
+      const path = new THREE.Mesh(new THREE.BoxGeometry(laneWidth * 3 + 0.6, 0.12, trackLength), matPath);
+      path.position.y = -0.04;
+      path.receiveShadow = true;
+      group.add(path);
+
+      [-laneWidth * 0.5, laneWidth * 0.5].forEach(x => {
+        const line = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.14, trackLength), matPathLine);
+        line.position.set(x, -0.03, 0);
+        group.add(line);
+      });
+
+      for (let j = -trackLength/2; j < trackLength/2; j += 20) {
+        const postMat = new THREE.MeshStandardMaterial({ color: 0x8d6e63, roughness: 0.9 });
+        const postL = new THREE.Mesh(new THREE.BoxGeometry(0.25, 2.0, 0.25), postMat);
+        postL.position.set(-(laneWidth * 1.5 + 1.2), 1.0, j);
+        postL.castShadow = true;
+        const postR = postL.clone();
+        postR.position.x = (laneWidth * 1.5 + 1.2);
+        group.add(postL, postR);
       }
+
       group.position.set(0, 0, zPos);
       scene.add(group);
       trackSegments.push(group);
     };
 
+    // --- Player Creation ---
     const buildPlayer = () => {
       playerObj = new THREE.Group();
-      const body = new THREE.Mesh(new THREE.BoxGeometry(0.7, 0.9, 0.5), matPlayer);
-      body.position.y = 1.0;
-      body.castShadow = true;
-      playerObj.add(body);
 
-      const head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), new THREE.MeshStandardMaterial({ color: 0x1e293b }));
-      head.position.set(0, 1.6, 0);
-      playerObj.add(head);
+      const characterMesh = new THREE.Group();
+      characterMesh.name = "characterMesh";
 
-      const legGeo = new THREE.BoxGeometry(0.2, 0.5, 0.25);
-      const leftLeg = new THREE.Mesh(legGeo, new THREE.MeshStandardMaterial({ color: 0x4f46e5 }));
-      leftLeg.position.set(-0.22, 0.35, 0); leftLeg.name = "leftLeg";
-      const rightLeg = leftLeg.clone(); rightLeg.position.x = 0.22; rightLeg.name = "rightLeg";
-      playerObj.add(leftLeg, rightLeg);
+      const headMat = new THREE.MeshStandardMaterial({ color: 0xffe0b2, roughness: 0.4 });
+      const head = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 0.4), headMat);
+      head.position.set(0, 1.45, 0);
+      head.castShadow = true;
 
-      const armGeo = new THREE.BoxGeometry(0.16, 0.5, 0.16);
-      const leftArm = new THREE.Mesh(armGeo, new THREE.MeshStandardMaterial({ color: 0x8b5cf6 }));
-      leftArm.position.set(-0.45, 1.0, 0); leftArm.name = "leftArm";
+      const cap = new THREE.Mesh(new THREE.BoxGeometry(0.42, 0.15, 0.42), matPlayerAcc);
+      cap.position.set(0, 1.6, 0.05);
+      cap.castShadow = true;
+      const brim = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.05, 0.25), matPlayerAcc);
+      brim.position.set(0, 1.55, -0.2);
+      characterMesh.add(head, cap, brim);
+
+      const torso = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.8, 0.45), matPlayerBody);
+      torso.position.y = 0.85;
+      torso.castShadow = true;
+      characterMesh.add(torso);
+
+      const legMat = new THREE.MeshStandardMaterial({ color: 0x424242 }); 
+      const leftLeg = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.45, 0.2), legMat); 
+      leftLeg.position.set(-0.2, 0.225, 0); leftLeg.name = "leftLeg";
+      const rightLeg = leftLeg.clone(); rightLeg.position.x = 0.2; rightLeg.name = "rightLeg";
+      characterMesh.add(leftLeg, rightLeg);
+
+      const leftArm = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.5, 0.18), matPlayerAcc); 
+      leftArm.position.set(-0.45, 0.9, 0); leftArm.name = "leftArm";
       const rightArm = leftArm.clone(); rightArm.position.x = 0.45; rightArm.name = "rightArm";
-      playerObj.add(leftArm, rightArm);
+      characterMesh.add(leftArm, rightArm);
 
-      playerObj.position.set(0, 0.1, 1.5);
+      playerObj.add(characterMesh);
+      playerObj.position.set(0, 0, 1.5);
       scene.add(playerObj);
     };
 
+    // --- Obstacles with Exact Hitboxes ---
     const createObstacle = (type: string, lane: number, zPos: number) => {
-      let obsMesh = new THREE.Group();
-      let bWidth = laneWidth, bHeight = 1.0, bDepth = 0.6, yPos = 0;
+      const obsMesh = new THREE.Group();
+      let hitW = 1, hitH = 1, hitD = 1, hitY = 0; // ตัวแปรสำหรับ Hitbox
 
-      if (type === "TRAIN") {
-        obsMesh.add(new THREE.Mesh(new THREE.BoxGeometry(2.0, 3.2, 8.0), matTrain));
-        yPos = 1.6; bWidth = 1.9; bHeight = 3.2; bDepth = 8.0;
-      } else if (type === "BARRICADE_HIGH") {
-        const left = new THREE.Mesh(new THREE.BoxGeometry(0.15, 3.0, 0.15), matBarricadeHigh); left.position.set(-laneWidth/2, 1.5, 0);
-        const right = left.clone(); right.position.x = laneWidth/2;
-        const bar = new THREE.Mesh(new THREE.BoxGeometry(laneWidth + 0.1, 0.4, 0.3), matBarricadeHigh); bar.position.set(0, 2.5, 0);
-        obsMesh.add(left, right, bar);
-        yPos = 0; bHeight = 0.5;
-      } else {
-        const cross = new THREE.Mesh(new THREE.BoxGeometry(laneWidth, 0.3, 0.2), matBarricadeLow); cross.position.set(0, 0.8, 0);
-        obsMesh.add(cross);
+      if (type === "TRUCK") { 
+        const truckBody = new THREE.Mesh(new THREE.BoxGeometry(2.0, 2.8, 6.0), matTruck);
+        truckBody.position.y = 1.4;
+        truckBody.castShadow = true;
+        obsMesh.add(truckBody);
+
+        const truckCab = new THREE.Mesh(new THREE.BoxGeometry(1.9, 1.5, 1.5), matTruckCab);
+        truckCab.position.set(0, 0.75, -2.5);
+        obsMesh.add(truckCab);
+
+        // Hitbox กล่องใหญ่คลุมรถบรรทุก
+        hitW = 2.0; hitH = 2.8; hitD = 6.0; hitY = 1.4;
+
+      } else if (type === "HIGH_FENCE") { 
+        // ปรับความสูงคานไม้ให้อยู่ที่ Y=1.2 (ตอนยืนสูง 1.65 หัวจะชนพอดี)
+        const fence = new THREE.Mesh(new THREE.BoxGeometry(laneWidth + 0.2, 0.3, 0.25), matHighFence);
+        fence.position.y = 1.2; 
+        fence.castShadow = true;
+        
+        const postL = new THREE.Mesh(new THREE.BoxGeometry(0.15, 1.35, 0.15), matHighFence);
+        postL.position.set(-laneWidth/2, 0.675, 0);
+        const postR = postL.clone(); postR.position.x = laneWidth/2;
+        
+        obsMesh.add(fence, postL, postR);
+
+        // Hitbox สร้างคลุมเฉพาะคานไม้อันบนเท่านั้น (ทะลุช่องล่างได้)
+        hitW = laneWidth; hitH = 0.35; hitD = 0.3; hitY = 1.2;
+
+      } else { 
+        const bush = new THREE.Mesh(new THREE.SphereGeometry(1.0, 12, 10), matLowBush);
+        bush.position.y = 0.4;
+        bush.scale.y = 0.6;
+        bush.castShadow = true;
+        obsMesh.add(bush);
+
+        // Hitbox พุ่มไม้
+        hitW = 1.4; hitH = 0.8; hitD = 1.4; hitY = 0.4;
       }
 
-      obsMesh.position.set(lane * laneWidth, yPos, zPos);
+      obsMesh.position.set(lane * laneWidth, 0, zPos);
       scene.add(obsMesh);
-      obstacles.push({ mesh: obsMesh, type, lane, z: zPos, width: bWidth, height: bHeight, depth: bDepth, box: new THREE.Box3() });
+      // แนบพารามิเตอร์ Hitbox ไปกับ object
+      obstacles.push({ mesh: obsMesh, type, lane, z: zPos, hitW, hitH, hitD, hitY });
     };
 
     const createCoin = (lane: number, zPos: number, yPos: number) => {
       const coin = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.1, 16), matCoin);
       coin.rotation.x = Math.PI / 2;
+      coin.castShadow = true;
       coin.position.set(lane * laneWidth, yPos, zPos);
       scene.add(coin);
       coins.push({ mesh: coin, collected: false });
     };
 
     const spawnHazards = (zStart: number) => {
-      [0, -33, -66].forEach(offset => {
+      [-20, -50, -80].forEach(offset => {
         const currentZ = zStart + offset;
         const r = Math.random();
-        if (r < 0.4) {
-          createObstacle("TRAIN", Math.floor(Math.random() * 3) - 1, currentZ);
-        } else if (r < 0.7) {
-          createObstacle("BARRICADE_HIGH", Math.floor(Math.random() * 3) - 1, currentZ);
-        } else {
-          createObstacle("BARRICADE_LOW", Math.floor(Math.random() * 3) - 1, currentZ);
-        }
+        const lane = Math.floor(Math.random() * 3) - 1;
+
+        if (r < 0.35) createObstacle("TRUCK", lane, currentZ);
+        else if (r < 0.7) createObstacle("HIGH_FENCE", lane, currentZ);
+        else createObstacle("LOW_BUSH", lane, currentZ);
+
         const coinLane = Math.floor(Math.random() * 3) - 1;
-        for (let c = 0; c < 3; c++) createCoin(coinLane, currentZ - (c * 3), 0.7);
+        for (let c = 0; c < 3; c++) createCoin(coinLane, currentZ - (c * 2.5), 0.7);
       });
     };
 
-    for (let i = 0; i < 3; i++) buildTrack(i * trackLength - trackLength);
+    for (let i = 0; i < numSegments; i++) {
+      buildTrack(-i * trackLength);
+    }
     buildPlayer();
-    spawnHazards(-50); spawnHazards(-150);
+    spawnHazards(-30); spawnHazards(-130); spawnHazards(-230);
 
-    // --- Main Game Loop (Endless Runner) ---
+    // --- Main Game Loop ---
     const animate = () => {
       if (state.isGameOver) return;
       const delta = clock.getDelta();
@@ -258,77 +323,91 @@ export default function SquatSurfer({ onGameOver }: GameProps) {
         playSynthSound("jump");
       }
       state.wasJumping = isJumpingNow;
+      
       if (poseState.nose.y > 0 && !poseState.isSquatting && !isJumpingNow) {
         state.baselineNoseY = (state.baselineNoseY * 0.95) + (poseState.nose.y * 0.05);
       }
 
-      // 2. Player Kinematics
-      playerObj.position.x = THREE.MathUtils.lerp(playerObj.position.x, state.currentLane * laneWidth, 18 * delta);
-      
+      // 2. Player Movement 
+      const targetX = state.currentLane * laneWidth;
+      playerObj.position.x = THREE.MathUtils.lerp(playerObj.position.x, targetX, 18 * delta);
+
+      const charMesh = playerObj.getObjectByName("characterMesh") as THREE.Group;
+
       if (state.playerState === "jump") {
         state.playerJumpTime += delta;
         state.playerJumpY = (1 - Math.pow((state.playerJumpTime - 0.325)/0.325, 2)) * 2.1;
-        playerObj.position.y = 0.1 + state.playerJumpY;
+        playerObj.position.y = state.playerJumpY;
         if (state.playerJumpTime >= 0.65) state.playerState = "run";
-      } else if (state.playerState === "slide") {
+      } 
+      else if (state.playerState === "slide") {
         state.playerSlideTime += delta;
-        playerObj.scale.set(1, 0.45, 1);
-        playerObj.position.y = 0.1;
+        if (charMesh) charMesh.scale.set(1, 0.45, 1); 
+        playerObj.position.y = 0;
         if (state.playerSlideTime >= 0.8) {
-          playerObj.scale.set(1, 1, 1);
+          if (charMesh) charMesh.scale.set(1, 1, 1);
           state.playerState = "run";
         }
-      } else {
-        playerObj.position.y = 0.1;
+      } 
+      else {
+        if (charMesh) charMesh.scale.set(1, 1, 1);
+        playerObj.position.y = 0;
       }
 
       const animTime = clock.getElapsedTime() * 14 * state.speedMultiplier;
-      const lLeg = playerObj.getObjectByName("leftLeg") as THREE.Mesh;
-      const rLeg = playerObj.getObjectByName("rightLeg") as THREE.Mesh;
       const lArm = playerObj.getObjectByName("leftArm") as THREE.Mesh;
       const rArm = playerObj.getObjectByName("rightArm") as THREE.Mesh;
+      const lLeg = playerObj.getObjectByName("leftLeg") as THREE.Mesh;
+      const rLeg = playerObj.getObjectByName("rightLeg") as THREE.Mesh;
 
-      if (state.playerState === "run") {
-        lLeg.rotation.x = Math.sin(animTime) * 0.75; rLeg.rotation.x = -Math.sin(animTime) * 0.75;
-        lArm.rotation.x = -Math.sin(animTime) * 0.65; rArm.rotation.x = Math.sin(animTime) * 0.65;
-      } else {
-        lLeg.rotation.x = -0.6; rLeg.rotation.x = -0.3;
-        lArm.rotation.x = 0.9; rArm.rotation.x = 0.9;
+      if (lArm && rArm && lLeg && rLeg) {
+        if (state.playerState === "run") {
+          const swing = Math.sin(animTime) * 0.6;
+          lArm.rotation.x = -swing; rArm.rotation.x = swing;
+          lLeg.rotation.x = swing; rLeg.rotation.x = -swing;
+        } else {
+          lArm.rotation.x = 0.8; rArm.rotation.x = 0.8;
+          lLeg.rotation.x = -0.4; rLeg.rotation.x = -0.4;
+        }
       }
 
-      // 3. Move World (Speed continuously increases)
+      // 3. Move World 
       const moveStep = state.speed * state.speedMultiplier * delta;
       state.distance += moveStep * 0.55;
-      state.speedMultiplier += 0.025 * delta; // Accelerate over time
+      
+      if (state.speedMultiplier < state.maxSpeedMultiplier) {
+         state.speedMultiplier += 0.025 * delta; 
+      }
       
       if (distanceRef.current) distanceRef.current.innerText = `${Math.floor(state.distance)}m`;
       if (speedRef.current) speedRef.current.innerText = `${state.speedMultiplier.toFixed(1)}x`;
 
       trackSegments.forEach(segment => {
         segment.position.z += moveStep;
-        if (segment.position.z > 35) {
-          segment.position.z -= trackLength * 3;
-          spawnHazards(segment.position.z - (trackLength / 2));
+        if (segment.position.z > trackLength) {
+          segment.position.z -= trackLength * numSegments;
+          spawnHazards(segment.position.z);
         }
       });
 
-      // 4. Collision & Updates
+      // 4. Exact Collision Logic
       const playerBox = new THREE.Box3().setFromObject(playerObj);
+      playerBox.expandByScalar(-0.05); // ลดระยะ Hitbox ขอบตัวละครเล็กน้อย
 
       for (let i = obstacles.length - 1; i >= 0; i--) {
         const obs = obstacles[i];
         obs.mesh.position.z += moveStep;
         
-        let boxY = obs.type === "BARRICADE_HIGH" ? 2.5 : (obs.type === "BARRICADE_LOW" ? 0.6 : obs.mesh.position.y);
-        obs.box.setFromCenterAndSize(
-          new THREE.Vector3(obs.mesh.position.x, boxY, obs.mesh.position.z),
-          new THREE.Vector3(obs.width, obs.height, obs.depth)
+        // สร้าง Hitbox เฉพาะจุดชนตามที่คำนวณไว้
+        const obsBox = new THREE.Box3().setFromCenterAndSize(
+          new THREE.Vector3(obs.mesh.position.x, obs.hitY, obs.mesh.position.z),
+          new THREE.Vector3(obs.hitW, obs.hitH, obs.hitD)
         );
 
-        if (playerBox.intersectsBox(obs.box)) {
+        if (playerBox.intersectsBox(obsBox)) {
           playSynthSound("crash");
           state.isGameOver = true;
-          onGameOver(state.score); // End game ONLY when hit
+          onGameOver(state.score); 
           return; 
         }
 
@@ -341,9 +420,9 @@ export default function SquatSurfer({ onGameOver }: GameProps) {
       for (let i = coins.length - 1; i >= 0; i--) {
         const coin = coins[i];
         coin.mesh.position.z += moveStep;
-        coin.mesh.rotation.z += 4.5 * delta;
+        coin.mesh.rotation.y += 4.5 * delta;
 
-        if (!coin.collected && playerObj.position.distanceTo(coin.mesh.position) < 1.5) {
+        if (!coin.collected && playerObj.position.distanceTo(coin.mesh.position) < 1.4) {
           coin.collected = true;
           scene.remove(coin.mesh);
           coins.splice(i, 1);
@@ -383,32 +462,32 @@ export default function SquatSurfer({ onGameOver }: GameProps) {
 
   return (
     <>
-      <div ref={containerRef} className="absolute inset-0 z-10 bg-linear-to-b from-indigo-950 via-slate-950 to-purple-950 pointer-events-none" />
+      <div ref={containerRef} className="absolute inset-0 z-10 pointer-events-none" />
       
-      <div className="absolute top-4 left-4 z-30 flex gap-4 pointer-events-none">
-        <div className="bg-slate-900/80 border border-purple-500/50 rounded-xl p-4 flex gap-6 items-center shadow-lg backdrop-blur-md">
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-yellow-500/20 border border-yellow-500 flex items-center justify-center text-yellow-400">
-               <span className="text-2xl font-bold">💰</span>
+      <div className="absolute top-6 w-full z-30 flex justify-center pointer-events-none px-4">
+        <div className="bg-white/70 backdrop-blur-xl border border-white/50 rounded-[2rem] px-8 py-4 flex gap-8 items-center shadow-[0_8px_32px_rgba(0,0,0,0.1)]">
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-full bg-gradient-to-br from-amber-300 to-orange-500 flex items-center justify-center text-white shadow-lg shadow-orange-500/30">
+               <span className="text-2xl font-bold">💎</span>
             </div>
-            <div>
-              <div className="text-xs text-slate-400 font-semibold tracking-wider">SCORE</div>
-              <div ref={scoreRef} className="text-3xl font-bold text-yellow-300 font-mono">0</div>
-            </div>
-          </div>
-          <div className="w-px h-10 bg-slate-700/50"></div>
-          <div className="flex items-center gap-3">
-            <div>
-              <div className="text-xs text-slate-400 font-semibold tracking-wider">SPEED</div>
-              <div ref={speedRef} className="text-xl font-bold text-purple-300 font-mono">1.0x</div>
+            <div className="flex flex-col">
+              <span className="text-[11px] text-slate-500 font-bold tracking-widest uppercase">SCORE</span>
+              <span ref={scoreRef} className="text-3xl font-black text-slate-800 font-mono tracking-tight leading-none">0</span>
             </div>
           </div>
-          <div className="w-px h-10 bg-slate-700/50"></div>
-          <div className="flex items-center gap-3">
-            <div>
-              <div className="text-xs text-slate-400 font-semibold tracking-wider">DISTANCE</div>
-              <div ref={distanceRef} className="text-xl font-bold text-emerald-300 font-mono">0m</div>
-            </div>
+          
+          <div className="w-px h-12 bg-slate-300/60 rounded-full"></div>
+          
+          <div className="flex flex-col items-center px-2">
+            <span className="text-[11px] text-slate-500 font-bold tracking-widest uppercase">SPEED</span>
+            <span ref={speedRef} className="text-xl font-bold text-sky-500 font-mono">1.0x</span>
+          </div>
+
+          <div className="w-px h-12 bg-slate-300/60 rounded-full"></div>
+
+          <div className="flex flex-col items-center px-2">
+            <span className="text-[11px] text-slate-500 font-bold tracking-widest uppercase">DISTANCE</span>
+            <span ref={distanceRef} className="text-xl font-bold text-emerald-500 font-mono">0m</span>
           </div>
         </div>
       </div>

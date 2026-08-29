@@ -22,15 +22,18 @@ import RPGFitQuestTraining from "@/components/games/RPGFitQuestTraining";
 import RichOrMessTraining from "@/components/games/RichOrMessTraining";
 import MuayThaiArenaTraining from "@/components/games/MuayThaiArenaTraining";
 import FitQuestTraining from "@/components/games/FitQuestTraining";
+import RealtimeHRGraph from "@/components/RealtimeHRGraph";
 
 // Added "CALIBRATING" to the phases
 type RoundPhase = "AWAITING_CONNECTION" | "CALIBRATING" | "PLAYING" | "REST" | "RESULTS";
 
-export default function TrainingArena({searchParams}: {searchParams : {
+export default function TrainingArena({ searchParams }: {
+  searchParams: {
     userId?: string;
     game?: string;
     diff?: string;
-}}) {
+  }
+}) {
   const router = useRouter();
 
   const userId = searchParams.userId as Id<"users">;
@@ -57,9 +60,24 @@ export default function TrainingArena({searchParams}: {searchParams : {
   // Force React to re-render the HUD with the Bluetooth HR
   const [displayHR, setDisplayHR] = useState(0);
 
+  const [hrTimelineLive, setHrTimelineLive] = useState<number[]>([]);
+
   const bgVideoRef = useRef<HTMLVideoElement>(null);
   const poseCanvasRef = useRef<HTMLCanvasElement>(null);
   const isFullScreenCamera = ["Muay Thai Arena", "Rich Or Mess", "FitQuest"].includes(gameName);
+
+  const [isEngineReady, setIsEngineReady] = useState(false);
+  // รีเซ็ตสถานะ Engine เมื่อเริ่มเล่นใหม่
+  useEffect(() => {
+    if (phase === "PLAYING") {
+      setIsEngineReady(false);
+    }
+  }, [phase]);
+
+  const handleEngineReady = () => {
+    setIsEngineReady(true);
+  };
+
 
   // Clean up Bluetooth on unmount
   useEffect(() => {
@@ -80,9 +98,26 @@ export default function TrainingArena({searchParams}: {searchParams : {
 
   // 2. Real-time HR Display Sync
   useEffect(() => {
-    const interval = setInterval(() => setDisplayHR(hrStore.currentHR), 1000);
+    const interval = setInterval(() => {
+      const current = hrStore.currentHR;
+      setDisplayHR(current);
+
+      // อัปเดตข้อมูลกราฟเฉพาะตอนที่กำลังเล่น หรือกำลังพัก
+      if ((phase === "PLAYING" || phase === "REST") && current > 0) {
+
+        // ใช้ functional update (prev) เพื่อให้ได้ค่า array ล่าสุดเสมอ
+        setHrTimelineLive(prev => {
+          const newData = [...prev, current];
+
+          // 💡 ถ้าอยาก console.log เพื่อเช็คข้อมูล ให้ log ตรงนี้ครับถึงจะเห็นของจริง
+          // console.log("🔥 HR Graph Data:", newData); 
+
+          return newData;
+        });
+      }
+    }, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [phase]);
 
   // --- NEW: CALIBRATION ENGINE ---
   useEffect(() => {
@@ -113,37 +148,6 @@ export default function TrainingArena({searchParams}: {searchParams : {
 
     return () => clearInterval(interval);
   }, [phase]);
-
-  // 3. Round Timers (1 min play, 5 sec rest, 10 rounds)
-  useEffect(() => {
-    if (phase !== "PLAYING" && phase !== "REST") return;
-
-    const timerId = setInterval(() => {
-      setTimeLeft(prev => prev - 1); // pure: just decrement
-    }, 1000);
-
-    return () => clearInterval(timerId);
-  }, [phase]);
-
-  // New effect: react to timeLeft hitting 0, do phase/round transitions here
-  useEffect(() => {
-    if (phase !== "PLAYING" && phase !== "REST") return;
-    if (timeLeft > 0) return;
-
-    if (phase === "PLAYING") {
-      if (round >= 10) {
-        setPhase("RESULTS");
-      } else {
-        setPhase("REST");
-        setTimeLeft(5);
-      }
-    } else {
-      // phase === "REST"
-      setPhase("PLAYING");
-      setRound(r => r + 1);
-      setTimeLeft(60);
-    }
-  }, [timeLeft, phase, round]);
 
   // 4. DYNAMIC HR OPTIMIZATION ENGINE
   useEffect(() => {
@@ -183,11 +187,11 @@ export default function TrainingArena({searchParams}: {searchParams : {
   // 3. Shield the Engine component from UI state changes
   const renderedEngine = React.useMemo(() => {
     switch (gameName) {
-      case "Squat Surfer": return <SquatSurferPoseEngine videoRef={bgVideoRef} canvasRef={poseCanvasRef} />;
-      case "Muay Thai Arena": return <MuayThaiPoseEngine videoRef={bgVideoRef} canvasRef={poseCanvasRef} />;
-      case "Rich Or Mess": return <RichOrMessPoseEngine videoRef={bgVideoRef} canvasRef={poseCanvasRef} />;
-      case "FitQuest": return <FitQuestPoseEngine videoRef={bgVideoRef} canvasRef={poseCanvasRef} />;
-      case "RPG Fit Quest": return <RPGFitQuestPoseEngine videoRef={bgVideoRef} canvasRef={poseCanvasRef} />;
+      case "Squat Surfer": return <SquatSurferPoseEngine videoRef={bgVideoRef} canvasRef={poseCanvasRef} onReady={handleEngineReady} />;
+      case "Muay Thai Arena": return <MuayThaiPoseEngine videoRef={bgVideoRef} canvasRef={poseCanvasRef} onReady={handleEngineReady} />;
+      case "Rich Or Mess": return <RichOrMessPoseEngine videoRef={bgVideoRef} canvasRef={poseCanvasRef} onReady={handleEngineReady} />;
+      case "FitQuest": return <FitQuestPoseEngine videoRef={bgVideoRef} canvasRef={poseCanvasRef} onReady={handleEngineReady} />;
+      case "RPG Fit Quest": return <RPGFitQuestPoseEngine videoRef={bgVideoRef} canvasRef={poseCanvasRef} onReady={handleEngineReady} />;
       default: return null;
     }
   }, [gameName]);
@@ -274,6 +278,9 @@ export default function TrainingArena({searchParams}: {searchParams : {
   // 2. Add a ref to hold the array of heart rates locally
   const hrTimelineRef = useRef<number[]>([]);
 
+  // 👉 เพิ่มบรรทัดนี้เข้าไปค่ะ (เพื่อล็อคไม่ให้เซฟซ้ำ)
+  const hasSavedRef = useRef(false);
+
   // 3. Update the existing DYNAMIC HR OPTIMIZATION ENGINE useEffect
   // We will simply push the current HR to the array every 5 seconds.
   useEffect(() => {
@@ -298,45 +305,56 @@ export default function TrainingArena({searchParams}: {searchParams : {
   }, [phase, targetMin, targetMax]);
 
 
-  // 4. Update the RESULTS phase transition to trigger the database save
+  // -------------------------------------------------------------
+  // 3. ตัวนับเวลาถอยหลัง (ให้เหลือแค่อันนี้อันเดียวที่ลดเวลา)
+  // -------------------------------------------------------------
   useEffect(() => {
     if (phase !== "PLAYING" && phase !== "REST") return;
 
     const timerId = setInterval(() => {
-      setTimeLeft(prev => {
-        if (prev <= 1) {
-          if (phase === "PLAYING") {
-            if (round >= 10) {
-
-              // WE FINISHED ALL 10 ROUNDS! SAVE TO DATABASE HERE:
-              saveTraining({
-                userId,
-                gameName,
-                difficulty: diff,
-                totalScore: cumulativeScore, // Ensure you are updating cumulativeScore on round ends
-                roundsCompleted: 10,
-                hrTargetMin: targetMin,
-                hrTargetMax: targetMax,
-                hrTimeline: hrTimelineRef.current, // Pass the array of ~120 numbers
-              });
-
-              setPhase("RESULTS");
-              return 0;
-            }
-            setPhase("REST");
-            return 5;
-          } else {
-            setPhase("PLAYING");
-            setRound(r => r + 1);
-            return 60;
-          }
-        }
-        return prev - 1;
-      });
+      setTimeLeft(prev => prev - 1);
     }, 1000);
 
     return () => clearInterval(timerId);
-  }, [phase, round, cumulativeScore, targetMin, targetMax, userId, gameName, diff, saveTraining]);
+  }, [phase]);
+
+  // -------------------------------------------------------------
+  // 4. ตัวจัดการเปลี่ยน Phase และเซฟข้อมูล (เมื่อเวลา timeLeft เป็น 0)
+  // -------------------------------------------------------------
+  useEffect(() => {
+    if (phase !== "PLAYING" && phase !== "REST") return;
+    if (timeLeft > 0) return; // ถ้าเวลายังไม่หมด ไม่ต้องทำอะไร
+
+    if (phase === "PLAYING") {
+      if (round >= 10) {
+
+        // 👉 พระเอกของเราอยู่ตรงนี้ค่ะ! เช็คว่าเซฟไปหรือยัง ถ้ายัง ถึงจะยอมยิง API
+        if (!hasSavedRef.current) {
+          hasSavedRef.current = true; // ล็อคทันที ป้องกันยิงซ้ำรอบสอง
+
+          saveTraining({
+            userId,
+            gameName,
+            difficulty: diff,
+            totalScore: cumulativeScore,
+            roundsCompleted: 10,
+            hrTargetMin: targetMin,
+            hrTargetMax: targetMax,
+            hrTimeline: hrTimelineRef.current,
+          }).catch(err => console.error("Failed to save training session:", err));
+        }
+
+        setPhase("RESULTS");
+      } else {
+        setPhase("REST");
+        setTimeLeft(5);
+      }
+    } else if (phase === "REST") {
+      setPhase("PLAYING");
+      setRound(r => r + 1);
+      setTimeLeft(60);
+    }
+  }, [timeLeft, phase, round, cumulativeScore, targetMin, targetMax, userId, gameName, diff, saveTraining]);
 
   if (!activeUser?.user) return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white">Loading...</div>;
 
@@ -422,6 +440,16 @@ export default function TrainingArena({searchParams}: {searchParams : {
       {/* PHASE 2: GAMEPLAY */}
       {phase === "PLAYING" && (
         <>
+
+          {/* 2. แสดง Loading Screen จนกว่า Camera/MediaPipe จะพร้อม */}
+          {!isEngineReady && (
+            <div className="absolute inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center text-white">
+              <div className="w-12 h-12 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin mb-4" />
+              <h3 className="text-xl font-bold text-cyan-400">Initializing Camera & Pose Detection...</h3>
+              <p className="text-sm text-slate-400 mt-2">Please stand in front of the camera</p>
+            </div>
+          )}
+
           {isFullScreenCamera && (
             <>
               <video ref={bgVideoRef} className="absolute inset-0 w-full h-full object-cover scale-x-[-1] opacity-30 z-0" autoPlay playsInline muted />
@@ -430,9 +458,12 @@ export default function TrainingArena({searchParams}: {searchParams : {
           )}
 
           {/* Render Memoized Game Here */}
-          <div className="absolute inset-0 z-20 pointer-events-none">
-            {renderedGame}
-          </div>
+          {/* GAME COMPONENTS (ส่ง isEngineReady หรือแสดงเฉพาะตอนที่ ready ก็ได้ค่ะ) */}
+          {isEngineReady && (
+            <div className="absolute inset-0 z-20 pointer-events-none">
+              {renderedGame}
+            </div>
+          )}
 
           <div className="absolute top-4 right-4 z-40 flex flex-col items-end gap-4 pointer-events-none">
             {!isFullScreenCamera && (
@@ -536,6 +567,13 @@ export default function TrainingArena({searchParams}: {searchParams : {
 
           {/* Render Memoized Engine Here */}
           {renderedEngine}
+
+          {/* เรียกใช้งาน REALTIME DRAGGABLE HR GRAPH ตรงนี้ */}
+          <RealtimeHRGraph
+            data={hrTimelineLive}
+            targetMin={targetMin}
+            targetMax={targetMax}
+          />
         </>
       )}
 
@@ -561,7 +599,10 @@ export default function TrainingArena({searchParams}: {searchParams : {
           <p className="text-slate-400 mb-8">10 Rounds Completed Successfully</p>
 
           <DwellButton
-            onClick={() => { router.push("/"); }}
+            onClick={() => {
+              hrStore.disconnect(); // 👈 สั่งตัดการเชื่อมต่อและเคลียร์ Event Listener ตรงนี้ค่ะ
+              router.push("/");
+            }}
             className="w-80 h-24 bg-slate-800 border-2 border-emerald-500 text-2xl font-bold tracking-widest text-white hover:border-emerald-400"
             activeColor="bg-emerald-500"
           >

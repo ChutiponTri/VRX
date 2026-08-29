@@ -161,7 +161,7 @@ export default function FitQuest({ onGameOver }: GameProps) {
         // Apply Rep Completion
         if (repCompleted) {
           logic.current.currentReps += 1;
-          logic.current.score += 100;
+          logic.current.score += 10; // ปรับจาก +100 เป็น +10 สำหรับหลักสิบค่ะ
           
           // Update DOM
           if (repsRef.current) repsRef.current.innerText = logic.current.currentReps.toString();

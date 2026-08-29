@@ -7,10 +7,12 @@ import { poseState } from "../poseStore";
 interface EngineProps {
   videoRef: React.RefObject<HTMLVideoElement | null>;
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
+  onReady?: () => void;
 }
 
-export default function MuayThaiPoseEngine({ videoRef, canvasRef }: EngineProps) {
+export default function MuayThaiPoseEngine({ videoRef, canvasRef, onReady }: EngineProps) {
   const initialized = useRef(false);
+  const hasTriggeredReady = useRef(false);
 
   useEffect(() => {
     if (initialized.current) return;
@@ -56,22 +58,31 @@ export default function MuayThaiPoseEngine({ videoRef, canvasRef }: EngineProps)
       const results = poseLandmarker.detectForVideo(videoRef.current, performance.now());
       const ctx = canvasRef.current.getContext("2d");
 
+      if (!hasTriggeredReady.current && onReady) {
+        hasTriggeredReady.current = true;
+        onReady();
+      }
+
       if (ctx && drawingUtils) {
         ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
 
         if (results.landmarks && results.landmarks.length > 0) {
           const lm = results.landmarks[0];
           
-          // For Muay Thai, we might just want to hide the skeleton to focus on the glowing neon orbs 
-          // generated in the Game Component, but we will draw it faintly here as a backup.
+          // Draw faint skeleton for feedback
           drawingUtils.drawConnectors(lm, PoseLandmarker.POSE_CONNECTIONS, { color: "rgba(0, 255, 0, 0.3)", lineWidth: 2 });
 
           const w = window.innerWidth;
           const h = window.innerHeight;
 
-          // Extract all 6 striking limbs
+          // Extract all 8 striking limbs (Punches, Elbows, Knees, Kicks)
           poseState.leftWrist = { x: (1 - lm[15].x) * w, y: lm[15].y * h };
           poseState.rightWrist = { x: (1 - lm[16].x) * w, y: lm[16].y * h };
+          
+          // Added Elbow Tracking (Index 13 & 14) for 20-point Elbow Strikes
+          (poseState as any).leftElbow = { x: (1 - lm[13].x) * w, y: lm[13].y * h };
+          (poseState as any).rightElbow = { x: (1 - lm[14].x) * w, y: lm[14].y * h };
+
           poseState.leftKnee = { x: (1 - lm[25].x) * w, y: lm[25].y * h };
           poseState.rightKnee = { x: (1 - lm[26].x) * w, y: lm[26].y * h };
           poseState.leftAnkle = { x: (1 - lm[27].x) * w, y: lm[27].y * h };
@@ -92,7 +103,7 @@ export default function MuayThaiPoseEngine({ videoRef, canvasRef }: EngineProps)
         (videoRef.current.srcObject as MediaStream).getTracks().forEach(t => t.stop());
       }
     };
-  }, [canvasRef, videoRef]);
+  }, [canvasRef, videoRef, onReady]);
 
   return null;
 }

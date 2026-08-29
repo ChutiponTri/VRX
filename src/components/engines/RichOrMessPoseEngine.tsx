@@ -7,10 +7,12 @@ import { poseState } from "../poseStore";
 interface EngineProps {
   videoRef: React.RefObject<HTMLVideoElement | null>;
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
+  onReady?: () => void; // <-- เพิ่มตรงนี้ค่ะ
 }
 
-export default function RichOrMessPoseEngine({ videoRef, canvasRef }: EngineProps) {
+export default function RichOrMessPoseEngine({ videoRef, canvasRef, onReady }: EngineProps) {
   const initialized = useRef(false);
+  const hasTriggeredReady = useRef(false);
 
   useEffect(() => {
     if (initialized.current) return;
@@ -56,6 +58,11 @@ export default function RichOrMessPoseEngine({ videoRef, canvasRef }: EngineProp
       const results = poseLandmarker.detectForVideo(videoRef.current, performance.now());
       const ctx = canvasRef.current.getContext("2d");
 
+      if (!hasTriggeredReady.current && onReady) {
+        hasTriggeredReady.current = true;
+        onReady();
+      }
+
       if (ctx && drawingUtils) {
         ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
 
@@ -96,7 +103,7 @@ export default function RichOrMessPoseEngine({ videoRef, canvasRef }: EngineProp
         (videoRef.current.srcObject as MediaStream).getTracks().forEach(t => t.stop());
       }
     };
-  }, [canvasRef, videoRef]);
+  }, [canvasRef, videoRef, onReady]);
 
   return null;
 }

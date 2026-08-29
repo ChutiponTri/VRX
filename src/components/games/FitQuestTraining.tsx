@@ -140,12 +140,12 @@ export default function FitQuestTraining({ onGameOver }: GameProps) {
         }
       }
 
-      // Apply Rep Completion & Dynamic Score
+      // Apply Rep Completion & Dynamic Score (ปรับฐานคะแนนจาก 100 เป็น 10 ให้เลขไม่เว่อค่ะ)
       if (repCompleted) {
         logic.current.currentReps += 1;
         
-        // Base points (100) multiplied by current HR intensity
-        const pointsEarned = Math.round(100 * hrMult);
+        // Base points (10) multiplied by current HR intensity
+        const pointsEarned = Math.round(10 * hrMult);
         logic.current.score += pointsEarned;
         
         if (repsRef.current) repsRef.current.innerText = logic.current.currentReps.toString();

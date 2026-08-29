@@ -50,6 +50,19 @@ export default function GameArena({ searchParams }: {
   const bgVideoRef = useRef<HTMLVideoElement>(null);
   const poseCanvasRef = useRef<HTMLCanvasElement>(null);
 
+  const [isEngineReady, setIsEngineReady] = useState(false);
+
+  // รีเซ็ตสถานะ Engine เมื่อเริ่มเล่นใหม่
+  useEffect(() => {
+    if (phase === "PLAYING") {
+      setIsEngineReady(false);
+    }
+  }, [phase]);
+
+  const handleEngineReady = () => {
+    setIsEngineReady(true);
+  };
+
   // Check if current game needs full screen background camera
   const isFullScreenCamera =
     gameName === "Muay Thai Arena" ||
@@ -103,6 +116,15 @@ export default function GameArena({ searchParams }: {
       {/* --- PLAYING PHASE --- */}
       {phase === "PLAYING" && (
         <>
+          {/* 2. แสดง Loading Screen จนกว่า Camera/MediaPipe จะพร้อม */}
+          {!isEngineReady && (
+            <div className="absolute inset-0 z-50 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center text-white">
+              <div className="w-12 h-12 border-4 border-cyan-400 border-t-transparent rounded-full animate-spin mb-4" />
+              <h3 className="text-xl font-bold text-cyan-400">Initializing Camera & Pose Detection...</h3>
+              <p className="text-sm text-slate-400 mt-2">Please stand in front of the camera</p>
+            </div>
+          )}
+
           {/* BACKGROUND CAMERA (For 2D Games) */}
           {isFullScreenCamera && (
             <>
@@ -111,12 +133,16 @@ export default function GameArena({ searchParams }: {
             </>
           )}
 
-          {/* GAME COMPONENTS */}
-          {gameName === "Squat Surfer" && <SquatSurfer onGameOver={handleGameOver} />}
-          {gameName === "Muay Thai Arena" && <MuayThaiArena onGameOver={handleGameOver} />}
-          {gameName === "Rich Or Mess" && <RichOrMess onGameOver={handleGameOver} />}
-          {gameName === "FitQuest" && <FitQuest onGameOver={handleGameOver} />}
-          {gameName === "RPG Fit Quest" && <RPGFitQuest onGameOver={handleGameOver} />}
+          {/* GAME COMPONENTS (ส่ง isEngineReady หรือแสดงเฉพาะตอนที่ ready ก็ได้ค่ะ) */}
+          {isEngineReady && (
+            <>
+              {gameName === "Squat Surfer" && <SquatSurfer onGameOver={handleGameOver} />}
+              {gameName === "Muay Thai Arena" && <MuayThaiArena onGameOver={handleGameOver} />}
+              {gameName === "Rich Or Mess" && <RichOrMess onGameOver={handleGameOver} />}
+              {gameName === "FitQuest" && <FitQuest onGameOver={handleGameOver} />}
+              {gameName === "RPG Fit Quest" && <RPGFitQuest onGameOver={handleGameOver} />}
+            </>
+          )}
 
           {/* HUD & PIP CAMERA */}
           <div className="absolute top-4 right-4 z-40 flex flex-col items-end gap-4 pointer-events-none">
@@ -136,11 +162,11 @@ export default function GameArena({ searchParams }: {
           </div>
 
           {/* AI ENGINES (Tracking logic) */}
-          {gameName === "Squat Surfer" && <SquatSurferPoseEngine videoRef={bgVideoRef} canvasRef={poseCanvasRef} />}
-          {gameName === "Muay Thai Arena" && <MuayThaiPoseEngine videoRef={bgVideoRef} canvasRef={poseCanvasRef} />}
-          {gameName === "Rich Or Mess" && <RichOrMessPoseEngine videoRef={bgVideoRef} canvasRef={poseCanvasRef} />}
-          {gameName === "FitQuest" && <FitQuestPoseEngine videoRef={bgVideoRef} canvasRef={poseCanvasRef} />}
-          {gameName === "RPG Fit Quest" && <RPGFitQuestPoseEngine videoRef={bgVideoRef} canvasRef={poseCanvasRef} />}
+          {gameName === "Squat Surfer" && <SquatSurferPoseEngine videoRef={bgVideoRef} canvasRef={poseCanvasRef} onReady={handleEngineReady} />}
+          {gameName === "Muay Thai Arena" && <MuayThaiPoseEngine videoRef={bgVideoRef} canvasRef={poseCanvasRef} onReady={handleEngineReady} />}
+          {gameName === "Rich Or Mess" && <RichOrMessPoseEngine videoRef={bgVideoRef} canvasRef={poseCanvasRef} onReady={handleEngineReady} />}
+          {gameName === "FitQuest" && <FitQuestPoseEngine videoRef={bgVideoRef} canvasRef={poseCanvasRef} onReady={handleEngineReady} />}
+          {gameName === "RPG Fit Quest" && <RPGFitQuestPoseEngine videoRef={bgVideoRef} canvasRef={poseCanvasRef} onReady={handleEngineReady} />}
         </>
       )}
 

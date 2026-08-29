@@ -7,6 +7,7 @@ import { poseState } from "../poseStore";
 interface EngineProps {
   videoRef: React.RefObject<HTMLVideoElement | null>;
   canvasRef: React.RefObject<HTMLCanvasElement | null>;
+  onReady?: () => void; // <-- เพิ่มตรงนี้ค่ะ
 }
 
 // Minimum confidence MediaPipe must have in a landmark before we trust it.
@@ -35,8 +36,9 @@ function isVisible(...pts: Pt[]) {
   return pts.every((p) => (p.visibility ?? 1) > VISIBILITY_THRESHOLD);
 }
 
-export default function RPGFitQuestPoseEngine({ videoRef, canvasRef }: EngineProps) {
+export default function RPGFitQuestPoseEngine({ videoRef, canvasRef, onReady }: EngineProps) {
   const initialized = useRef(false);
+  const hasTriggeredReady = useRef(false);
 
   useEffect(() => {
     if (initialized.current) return;
@@ -98,6 +100,11 @@ export default function RPGFitQuestPoseEngine({ videoRef, canvasRef }: EnginePro
 
       const results = poseLandmarker.detectForVideo(videoRef.current, performance.now());
       const ctx = canvasRef.current.getContext("2d");
+
+      if (!hasTriggeredReady.current && onReady) {
+        hasTriggeredReady.current = true;
+        onReady();
+      }
 
       if (ctx && drawingUtils) {
         ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
@@ -201,7 +208,7 @@ export default function RPGFitQuestPoseEngine({ videoRef, canvasRef }: EnginePro
         (videoRef.current.srcObject as MediaStream).getTracks().forEach((t) => t.stop());
       }
     };
-  }, [canvasRef, videoRef]);
+  }, [canvasRef, videoRef, onReady]);
 
   return null;
 }
