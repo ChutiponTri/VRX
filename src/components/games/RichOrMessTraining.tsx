@@ -265,7 +265,7 @@ export default function RichOrMessTraining({ onGameOver, initialScore = 0 }: Gam
       <canvas ref={canvasRef} className="absolute inset-0 z-20 pointer-events-none" />
 
       <div className="absolute top-4 left-4 z-30 flex flex-col gap-4 pointer-events-none">
-        <div className="bg-slate-900/80 border border-yellow-500/50 rounded-xl p-6 min-w-[250px] shadow-lg backdrop-blur-md">
+        <div className="bg-slate-900/80 border border-yellow-500/50 rounded-xl p-6 min-w-62.5 shadow-lg backdrop-blur-md">
           <div className="text-xs text-yellow-400 font-bold tracking-widest uppercase mb-1">ยอดเงินสะสม</div>
           <div ref={scoreRef} className="text-5xl font-black text-white">฿{initialScore.toLocaleString()}</div>
         </div>

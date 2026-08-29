@@ -273,13 +273,13 @@ export default function RichOrMess({ onGameOver, initialScore = 0 }: GameProps) 
       <div className="absolute top-4 left-4 z-30 flex flex-col gap-4 pointer-events-none">
         
         {/* กล่องแสดงเวลา (Timer) */}
-        <div className="bg-slate-900/80 border border-blue-500/50 rounded-xl p-4 min-w-[150px] shadow-lg backdrop-blur-md">
+        <div className="bg-slate-900/80 border border-blue-500/50 rounded-xl p-4 min-w-37.5 shadow-lg backdrop-blur-md">
           <div className="text-xs text-blue-400 font-bold tracking-widest uppercase mb-1">เวลาที่เหลือ</div>
           <div ref={timerRef} className="text-4xl font-black text-white">60s</div>
         </div>
 
         {/* กล่องแสดงคะแนน (Score) */}
-        <div className="bg-slate-900/80 border border-yellow-500/50 rounded-xl p-6 min-w-[250px] shadow-lg backdrop-blur-md">
+        <div className="bg-slate-900/80 border border-yellow-500/50 rounded-xl p-6 min-w-62.5 shadow-lg backdrop-blur-md">
           <div className="text-xs text-yellow-400 font-bold tracking-widest uppercase mb-1">ยอดเงินสะสม</div>
           <div ref={scoreRef} className="text-5xl font-black text-white">฿{initialScore.toLocaleString()}</div>
         </div>
