@@ -35,6 +35,28 @@ export default function TouchlessCursor() {
     };
   }, []);
 
+  // เพิ่มใน Effect ของ TouchlessCursor หรือ Hook ควบคุม Scroll
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const container = document.getElementById("player-scroll-container");
+      if (!container || !cursorState.isActive) return;
+
+      const rect = container.getBoundingClientRect();
+      const zoneHeight = 60; // ขนาดพื้นที่ตรวจจับขอบ (px)
+
+      // ตรวจจับเมื่อ Cursor อยู่บริเวณขอบบน
+      if (cursorState.y >= rect.top && cursorState.y <= rect.top + zoneHeight) {
+        container.scrollTop -= 12; // Scroll ขึ้น
+      }
+      // ตรวจจับเมื่อ Cursor อยู่บริเวณขอบล่าง
+      else if (cursorState.y <= rect.bottom && cursorState.y >= rect.bottom - zoneHeight) {
+        container.scrollTop += 12; // Scroll ลง
+      }
+    }, 16);
+
+    return () => clearInterval(interval);
+  }, []);
+
   return (
     <div
       ref={cursorRef}

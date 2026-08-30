@@ -48,7 +48,7 @@ export default function AppEntry() {
     // Simply toggle the state. We will do the actual hardware connection 
     // on the /training route where we can force a physical click.
     setIsProMode((prev) => !prev);
-    
+
     // If turning off, we can safely disconnect programmatically
     if (isProMode) {
       hrStore.disconnect();
@@ -174,10 +174,10 @@ export default function AppEntry() {
               disabled={isConnecting}
               dwellTimeMs={1500}
               className={`w-56 h-16 border-2 flex items-center justify-center rounded-xl text-lg font-bold transition-all duration-300 ${isConnecting
-                  ? "bg-yellow-900/50 border-yellow-500 text-yellow-400 animate-pulse"
-                  : isProMode
-                    ? "bg-blue-900/40 border-blue-400 text-blue-300 shadow-[0_0_20px_rgba(59,130,246,0.4)]"
-                    : "bg-slate-800 border-slate-600 text-slate-400 hover:border-blue-500 hover:text-blue-200"
+                ? "bg-yellow-900/50 border-yellow-500 text-yellow-400 animate-pulse"
+                : isProMode
+                  ? "bg-blue-900/40 border-blue-400 text-blue-300 shadow-[0_0_20px_rgba(59,130,246,0.4)]"
+                  : "bg-slate-800 border-slate-600 text-slate-400 hover:border-blue-500 hover:text-blue-200"
                 }`}
               activeColor={isProMode ? "bg-blue-500" : "bg-slate-500"}
             >
@@ -201,14 +201,19 @@ export default function AppEntry() {
 
         {/* STEP 1: Select User or Create New */}
         {step === "SELECT_USER" && (
-          <div className="w-full max-w-5xl flex flex-col items-center">
-            <h2 className="text-3xl mb-8">WHO IS PLAYING?</h2>
-            <div className="flex gap-6 flex-wrap justify-center mb-12">
+          <div className="w-full max-w-4xl h-auto flex flex-col items-center">
+            <h2 className="text-3xl mb-6">WHO IS PLAYING?</h2>
+
+            {/* Scrollable Container: ใช้ max-h-[300px] แถวเดียวสูงพอดี 1 แถว ถ้ามากกว่า 2 แถวจะล็อกไว้ที่ 2 แถวแล้ว scroll */}
+            <div
+              id="player-scroll-container"
+              className="w-full max-h-[300px] overflow-y-auto p-3 flex gap-6 flex-wrap justify-center mb-6 scroll-smooth scrollbar-thin scrollbar-thumb-cyan-500 scrollbar-track-slate-800"
+            >
               {users?.map((user) => (
                 <DwellButton
                   key={user._id}
                   onClick={() => { setSelectedUserId(user._id); setStep("DASHBOARD"); }}
-                  className="w-48 h-32 bg-slate-800 border-2 border-slate-600 flex flex-col items-center justify-center hover:border-cyan-400"
+                  className="w-48 h-32 bg-slate-800 border-2 border-slate-600 flex flex-col items-center justify-center hover:border-cyan-400 shrink-0"
                   activeColor="bg-cyan-500"
                 >
                   <span className="text-2xl font-bold text-cyan-400">{user.name}</span>
@@ -216,24 +221,38 @@ export default function AppEntry() {
                 </DwellButton>
               ))}
             </div>
-            <DwellButton
-              onClick={() => { setNewName(""); setNewAge(""); setStep("CREATE_NAME"); }}
-              className="w-80 h-20 bg-emerald-900/50 border-2 border-emerald-500 text-xl font-bold hover:border-emerald-400"
-              activeColor="bg-emerald-500"
-            >
-              + CREATE NEW PLAYER
-            </DwellButton>
+
+            {/* ปุ่มสร้างผู้เล่นใหม่ */}
+            <div className="w-full flex justify-center pt-2 border-t border-slate-800">
+              <DwellButton
+                onClick={() => { setNewName(""); setNewAge(""); setStep("CREATE_NAME"); }}
+                className="w-80 h-20 bg-emerald-900/50 border-2 border-emerald-500 text-xl font-bold hover:border-emerald-400"
+                activeColor="bg-emerald-500"
+              >
+                + CREATE NEW PLAYER
+              </DwellButton>
+            </div>
           </div>
         )}
 
         {/* STEPS: Create Flow */}
         {(step === "CREATE_NAME" || step === "CREATE_AGE") && (
           <div className="w-full max-w-3xl flex flex-col items-center">
-            <h2 className="text-3xl mb-8">{step === "CREATE_NAME" ? "ENTER NEW NAME" : "ENTER AGE"}</h2>
-            <div className="text-5xl font-mono bg-slate-900 border-b-4 border-cyan-500 min-w-[300px] text-center p-4 mb-12 min-h-[80px]">
-              {step === "CREATE_NAME" ? newName : newAge}<span className="animate-pulse">_</span>
+            <h2 className="text-3xl mb-8">
+              {step === "CREATE_NAME" ? "ENTER NEW NAME" : "ENTER AGE"}
+            </h2>
+            <div className="text-5xl font-mono bg-slate-900 border-b-4 border-cyan-500 min-w-75 text-center p-4 mb-12 min-h-20">
+              {step === "CREATE_NAME" ? newName : newAge}
+              <span className="animate-pulse">_</span>
             </div>
-            <VirtualKeyboard mode={step === "CREATE_NAME" ? "text" : "number"} onKeyPress={handleKeyPress} onBackspace={handleBackspace} onEnter={handleEnter} />
+
+            {/* กำหนด mode ตาม step อย่างถูกหลัก */}
+            <VirtualKeyboard
+              mode={step === "CREATE_NAME" ? "text" : "number"}
+              onKeyPress={handleKeyPress}
+              onBackspace={handleBackspace}
+              onEnter={handleEnter}
+            />
           </div>
         )}
 
