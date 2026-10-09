@@ -435,9 +435,9 @@ export default function RPGFitQuestTraining({ onGameOver }: GameProps) {
         <div className="w-px bg-slate-700"></div>
         <div className="flex flex-col items-center"><div className="text-2xl">🏋️</div><div className="text-[10px] font-bold text-yellow-400 mt-1 uppercase">Squat Down</div><div className="text-xs text-white font-mono">Move DOWN</div></div>
         <div className="w-px bg-slate-700"></div>
-        <div className="flex flex-col items-center"><div className="text-2xl">👈</div><div className="text-[10px] font-bold text-yellow-400 mt-1 uppercase">Left Arm Up</div><div className="text-xs text-white font-mono">Move LEFT</div></div>
+        <div className="flex flex-col items-center"><div className="text-2xl">🦵</div><div className="text-[10px] font-bold text-yellow-400 mt-1 uppercase">Left Leg Raise</div><div className="text-xs text-white font-mono">Move LEFT</div></div>
         <div className="w-px bg-slate-700"></div>
-        <div className="flex flex-col items-center"><div className="text-2xl">👉</div><div className="text-[10px] font-bold text-yellow-400 mt-1 uppercase">Right Arm Up</div><div className="text-xs text-white font-mono">Move RIGHT</div></div>
+        <div className="flex flex-col items-center"><div className="text-2xl">🦵</div><div className="text-[10px] font-bold text-yellow-400 mt-1 uppercase">Right Leg Raise</div><div className="text-xs text-white font-mono">Move RIGHT</div></div>
       </div>
     </>
   );

@@ -31,10 +31,11 @@ export default function RPGFitQuest({ onGameOver }: GameProps) {
     let isRunning = true;
     const MAP_SIZE = 1600;
 
-    let baseTime = 60;
+    const customDuration = searchParams.get("duration");
+    let baseTime = customDuration ? parseInt(customDuration) : 180; // 3 minutes default
     let baseSpeed = 4.5;
-    if (difficulty.includes("Easy")) { baseTime = 90; baseSpeed = 5.5; }
-    if (difficulty.includes("Hard")) { baseTime = 45; baseSpeed = 3.5; }
+    if (difficulty.includes("Easy")) { baseSpeed = 5.5; }
+    if (difficulty.includes("Hard")) { baseSpeed = 3.5; }
 
     const state = {
       score: 0, combo: 0, comboTimer: 0, timeLeft: baseTime,
@@ -443,9 +444,9 @@ export default function RPGFitQuest({ onGameOver }: GameProps) {
         <div className="w-px bg-slate-700"></div>
         <div className="flex flex-col items-center"><div className="text-2xl">🏋️</div><div className="text-[10px] font-bold text-yellow-400 mt-1 uppercase">Squat Down</div><div className="text-xs text-white font-mono">Move DOWN</div></div>
         <div className="w-px bg-slate-700"></div>
-        <div className="flex flex-col items-center"><div className="text-2xl">👈</div><div className="text-[10px] font-bold text-yellow-400 mt-1 uppercase">Left Arm Up</div><div className="text-xs text-white font-mono">Move LEFT</div></div>
+        <div className="flex flex-col items-center"><div className="text-2xl">🦵</div><div className="text-[10px] font-bold text-yellow-400 mt-1 uppercase">Left Leg Raise</div><div className="text-xs text-white font-mono">Move LEFT</div></div>
         <div className="w-px bg-slate-700"></div>
-        <div className="flex flex-col items-center"><div className="text-2xl">👉</div><div className="text-[10px] font-bold text-yellow-400 mt-1 uppercase">Right Arm Up</div><div className="text-xs text-white font-mono">Move RIGHT</div></div>
+        <div className="flex flex-col items-center"><div className="text-2xl">🦵</div><div className="text-[10px] font-bold text-yellow-400 mt-1 uppercase">Right Leg Raise</div><div className="text-xs text-white font-mono">Move RIGHT</div></div>
       </div>
     </>
   );

@@ -25,7 +25,8 @@ export default function RichOrMess({ onGameOver, initialScore = 0 }: GameProps) 
     let rafId: number;
     let isRunning = true;
     
-    const GAME_DURATION = 60000; // เวลาเล่น 60 วินาที
+    const customDuration = searchParams.get("duration");
+    const GAME_DURATION = (customDuration ? parseInt(customDuration) : 180) * 1000; // 3 minutes default
     let startTime: number | null = null;
 
     // --- Difficulty Adjustments (คงความเร็วปกติ ไม่ปรับลดลง) ---

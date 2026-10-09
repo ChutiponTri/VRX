@@ -72,10 +72,13 @@ export default function MuayThaiArena({ onGameOver }: GameProps) {
       spawn: () => playSound(600, 'sine', 0.05)
     };
 
+    const customDuration = searchParams.get("duration");
+    const initialTime = customDuration ? parseInt(customDuration) : 180; // 3 minutes default
+
     // --- Game State ---
     const state = {
       score: 0,
-      timeLeft: 60,
+      timeLeft: initialTime,
     };
 
     const targets: BalloonTarget[] = [];
@@ -106,7 +109,11 @@ export default function MuayThaiArena({ onGameOver }: GameProps) {
     // Timer Interval
     const timerId = setInterval(() => {
       state.timeLeft -= 1;
-      if (timeRef.current) timeRef.current.innerText = `${state.timeLeft}s`;
+      if (timeRef.current) {
+        const mins = Math.floor(state.timeLeft / 60);
+        const secs = state.timeLeft % 60;
+        timeRef.current.innerText = `${mins}:${String(secs).padStart(2, '0')}`;
+      }
       if (state.timeLeft <= 0 && isRunning) {
         isRunning = false;
         onGameOver(state.score);
@@ -297,7 +304,7 @@ export default function MuayThaiArena({ onGameOver }: GameProps) {
 
         <div className="bg-slate-900/80 border border-red-500/50 rounded-xl p-4 w-48 shadow-lg backdrop-blur-md">
           <div className="text-xs text-slate-400 font-bold tracking-wider">TIME LEFT</div>
-          <div ref={timeRef} className="text-3xl font-bold text-red-400 font-mono">60s</div>
+          <div ref={timeRef} className="text-3xl font-bold text-red-400 font-mono">3:00</div>
         </div>
 
         <div className="bg-slate-900/80 border border-red-500/50 rounded-xl p-4 w-48 shadow-lg backdrop-blur-md">

@@ -31,6 +31,7 @@ export default function AppEntry() {
   const [selectedUserId, setSelectedUserId] = useState<Id<"users"> | null>(null);
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
   const [selectedDiff, setSelectedDiff] = useState<string | null>(null);
+  const [sessionRounds, setSessionRounds] = useState<5 | 10>(5);
   const [newName, setNewName] = useState("");
   const [newAge, setNewAge] = useState("");
 
@@ -105,7 +106,9 @@ export default function AppEntry() {
         userId: selectedUserId,
         game: selectedGame,
         diff: difficulty,
-        rhr: mockBpm.toString()
+        rhr: mockBpm.toString(),
+        rounds: sessionRounds.toString(),
+        duration: "180"
       });
 
       // Push to the dedicated training route
@@ -122,7 +125,9 @@ export default function AppEntry() {
       userId: selectedUserId,
       game: selectedGame,
       diff: selectedDiff,
-      rhr: bpm.toString()
+      rhr: bpm.toString(),
+      rounds: sessionRounds.toString(),
+      duration: "180"
     });
 
     // Push to the dedicated game route
@@ -207,7 +212,7 @@ export default function AppEntry() {
             {/* Scrollable Container: ใช้ max-h-[300px] แถวเดียวสูงพอดี 1 แถว ถ้ามากกว่า 2 แถวจะล็อกไว้ที่ 2 แถวแล้ว scroll */}
             <div
               id="player-scroll-container"
-              className="w-full max-h-[300px] overflow-y-auto p-3 flex gap-6 flex-wrap justify-center mb-6 scroll-smooth scrollbar-thin scrollbar-thumb-cyan-500 scrollbar-track-slate-800"
+              className="w-full max-h-75 overflow-y-auto p-3 flex gap-6 flex-wrap justify-center mb-6 scroll-smooth scrollbar-thin scrollbar-thumb-cyan-500 scrollbar-track-slate-800"
             >
               {users?.map((user) => (
                 <DwellButton
@@ -307,61 +312,86 @@ export default function AppEntry() {
           <div className="w-full max-w-6xl flex flex-col items-center mt-12">
             <h2 className="text-3xl mb-8 uppercase">Choose Your Workout</h2>
             <div className="flex gap-6 w-full justify-center">
-              <DwellButton onClick={() => { setSelectedGame("Muay Thai Arena"); setStep("DIFFICULTY"); }} className="w-72 h-64 bg-slate-800 border-2 border-red-600/50 hover:border-red-500 p-6 flex flex-col justify-center items-center" activeColor="bg-red-500">
-                <h3 className="text-2xl font-bold text-red-400 mb-2 text-center">MUAY THAI ARENA</h3>
+              <DwellButton onClick={() => { setSelectedGame("Muay Thai Game"); setStep("DIFFICULTY"); }} className="w-72 h-64 bg-slate-800 border-2 border-red-600/50 hover:border-red-500 p-6 flex flex-col justify-center items-center" activeColor="bg-red-500">
+                <h3 className="text-2xl font-bold text-red-400 mb-2 text-center">MUAY THAI GAME</h3>
                 <p className="text-slate-400 text-center text-sm">Focus: Arm actions, Punches, Targets</p>
               </DwellButton>
-              <DwellButton onClick={() => { setSelectedGame("Squat Surfer"); setStep("DIFFICULTY"); }} className="w-72 h-64 bg-slate-800 border-2 border-blue-600/50 hover:border-blue-500 p-6 flex flex-col justify-center items-center" activeColor="bg-blue-500">
-                <h3 className="text-2xl font-bold text-blue-400 mb-2 text-center">SQUAT SURFER</h3>
-                <p className="text-slate-400 text-center text-sm">Focus: Lateral steps, Squats, Dodging</p>
+              <DwellButton onClick={() => { setSelectedGame("Block Jump Game"); setStep("DIFFICULTY"); }} className="w-72 h-64 bg-slate-800 border-2 border-blue-600/50 hover:border-blue-500 p-6 flex flex-col justify-center items-center" activeColor="bg-blue-500">
+                <h3 className="text-2xl font-bold text-blue-400 mb-2 text-center">BLOCK JUMP GAME</h3>
+                <p className="text-slate-400 text-center text-sm">Focus: Lateral steps, Jump & Duck Obstacles</p>
               </DwellButton>
-              <DwellButton onClick={() => { setSelectedGame("Rich Or Mess"); setStep("DIFFICULTY"); }} className="w-72 h-64 bg-slate-800 border-2 border-yellow-600/50 hover:border-yellow-500 p-6 flex flex-col justify-center items-center" activeColor="bg-yellow-500">
-                <h3 className="text-2xl font-bold text-yellow-400 mb-2 text-center">RICH OR MESS</h3>
-                <p className="text-slate-400 text-center text-sm">Focus: Core control, Catch & Dodge</p>
+              <DwellButton onClick={() => { setSelectedGame("Squat Game"); setStep("DIFFICULTY"); }} className="w-72 h-64 bg-slate-800 border-2 border-yellow-600/50 hover:border-yellow-500 p-6 flex flex-col justify-center items-center" activeColor="bg-yellow-500">
+                <h3 className="text-2xl font-bold text-yellow-400 mb-2 text-center">SQUAT GAME</h3>
+                <p className="text-slate-400 text-center text-sm">Focus: Squats, Coin Collection, Core Control</p>
               </DwellButton>
-              <DwellButton onClick={() => { setSelectedGame("RPG Fit Quest"); setStep("DIFFICULTY"); }} className="w-72 h-64 bg-slate-800 border-2 border-green-600/50 hover:border-green-500 p-6 flex flex-col justify-center items-center" activeColor="bg-green-500">
-                <h3 className="text-2xl font-bold text-green-400 mb-2 text-center">RPG FIT QUEST</h3>
-                <p className="text-slate-400 text-center text-sm">Focus: Walking, Lateral Raise, Squat</p>
+              <DwellButton onClick={() => { setSelectedGame("Walking Game"); setStep("DIFFICULTY"); }} className="w-72 h-64 bg-slate-800 border-2 border-green-600/50 hover:border-green-500 p-6 flex flex-col justify-center items-center" activeColor="bg-green-500">
+                <h3 className="text-2xl font-bold text-green-400 mb-2 text-center">WALKING GAME</h3>
+                <p className="text-slate-400 text-center text-sm">Focus: March in place, Lateral Leg Raise, Squat</p>
               </DwellButton>
-            </div>
-
-            {/* FitQuest Special Button */}
-            <div className="mt-12 gap-6 flex justify-center w-full">
-              <DwellButton
-                onClick={() => { setSelectedGame("FitQuest"); setStep("DIFFICULTY"); }}
-                className="w-32 h-32 rounded-full bg-slate-900 border-4 border-cyan-600/50 hover:border-cyan-400 flex flex-col justify-center items-center shadow-[0_0_20px_rgba(0,229,255,0.3)] transition-all"
-                activeColor="bg-cyan-500"
-              >
-                <span className="text-4xl mb-1">🏃</span>
-                <span className="text-xs font-bold text-cyan-400 tracking-widest">FITQUEST</span>
-              </DwellButton>
-
-              {/* <DwellButton
-                onClick={() => { setSelectedGame("RPG Fit Quest"); setStep("DIFFICULTY"); }}
-                className="w-32 h-32 rounded-full bg-slate-900 border-4 border-cyan-600/50 hover:border-cyan-400 flex flex-col justify-center items-center shadow-[0_0_20px_rgba(0,229,255,0.3)] transition-all"
-                activeColor="bg-cyan-500"
-              >
-                <span className="text-4xl mb-1">🏋️</span>
-                <span className="text-xs font-bold text-cyan-400 tracking-widest">RPG Fit Quest</span>
-              </DwellButton> */}
             </div>
           </div>
         )}
 
         {/* DIFFICULTY */}
         {step === "DIFFICULTY" && (
-          <div className="w-full max-w-5xl flex flex-col items-center mt-12">
-            <h2 className="text-3xl mb-2 uppercase">Select Intensity</h2>
-            <p className="text-slate-400 mb-8">Game: <span className="text-cyan-400">{selectedGame}</span></p>
+          <div className="w-full max-w-5xl flex flex-col items-center mt-8">
+            <h2 className="text-3xl mb-2 uppercase">Select Intensity & Duration</h2>
+            <p className="text-slate-400 mb-6">Game: <span className="text-cyan-400 font-bold">{selectedGame}</span></p>
+
+            {/* Session Duration Selector: 3 นาที x 5 รอบ vs 3 นาที x 10 รอบ */}
+            <div className="w-full max-w-2xl bg-slate-900/80 border border-slate-700/80 rounded-2xl p-4 mb-8 backdrop-blur-md flex flex-col items-center">
+              <span className="text-xs uppercase tracking-widest text-slate-400 font-bold mb-3">
+                Workout Duration (เลือกระยะเวลาการเล่น)
+              </span>
+              <div className="flex gap-4 w-full justify-center">
+                <DwellButton
+                  onClick={() => setSessionRounds(5)}
+                  className={`flex-1 h-20 border-2 rounded-xl flex items-center justify-center gap-3 transition-all ${
+                    sessionRounds === 5
+                      ? "bg-cyan-950/80 border-cyan-400 text-white shadow-[0_0_15px_rgba(34,211,238,0.4)]"
+                      : "bg-slate-800/80 border-slate-600 text-slate-400 hover:border-slate-400"
+                  }`}
+                  activeColor="bg-cyan-500"
+                >
+                  <span className={`text-2xl ${sessionRounds === 5 ? "text-cyan-400" : "text-slate-500"}`}>
+                    {sessionRounds === 5 ? "☑" : "☐"}
+                  </span>
+                  <div className="text-left">
+                    <div className="text-base font-bold text-white leading-tight">3 Min x 5 Rounds</div>
+                    <div className="text-xs text-cyan-300 font-medium">3 นาที x 5 รอบ (15 นาที)</div>
+                  </div>
+                </DwellButton>
+
+                <DwellButton
+                  onClick={() => setSessionRounds(10)}
+                  className={`flex-1 h-20 border-2 rounded-xl flex items-center justify-center gap-3 transition-all ${
+                    sessionRounds === 10
+                      ? "bg-cyan-950/80 border-cyan-400 text-white shadow-[0_0_15px_rgba(34,211,238,0.4)]"
+                      : "bg-slate-800/80 border-slate-600 text-slate-400 hover:border-slate-400"
+                  }`}
+                  activeColor="bg-cyan-500"
+                >
+                  <span className={`text-2xl ${sessionRounds === 10 ? "text-cyan-400" : "text-slate-500"}`}>
+                    {sessionRounds === 10 ? "☑" : "☐"}
+                  </span>
+                  <div className="text-left">
+                    <div className="text-base font-bold text-white leading-tight">3 Min x 10 Rounds</div>
+                    <div className="text-xs text-cyan-300 font-medium">3 นาที x 10 รอบ (30 นาที)</div>
+                  </div>
+                </DwellButton>
+              </div>
+            </div>
+
+            {/* Intensity Selection Buttons */}
             <div className="flex gap-6 w-full justify-center">
-              <DwellButton onClick={() => selectDifficultyAndScan("Easy")} className="w-72 h-48 bg-slate-800 border-2 border-green-600/50 hover:border-green-400 flex flex-col justify-center items-center" activeColor="bg-green-500">
-                <h3 className="text-3xl font-bold text-green-400 text-center leading-tight">START ROUND 1<br /><span className="text-xl">(Easy)</span></h3>
+              <DwellButton onClick={() => selectDifficultyAndScan("Easy")} className="w-72 h-44 bg-slate-800 border-2 border-green-600/50 hover:border-green-400 flex flex-col justify-center items-center" activeColor="bg-green-500">
+                <h3 className="text-3xl font-bold text-green-400 text-center leading-tight">START EASY<br /><span className="text-lg text-slate-300 font-normal">Level 1 (ระดับเริ่มต้น)</span></h3>
               </DwellButton>
-              <DwellButton onClick={() => selectDifficultyAndScan("Medium")} className="w-72 h-48 bg-slate-800 border-2 border-yellow-600/50 hover:border-yellow-400 flex flex-col justify-center items-center" activeColor="bg-yellow-500">
-                <h3 className="text-3xl font-bold text-yellow-400 text-center leading-tight">START ROUND 2<br /><span className="text-xl">(Medium)</span></h3>
+              <DwellButton onClick={() => selectDifficultyAndScan("Medium")} className="w-72 h-44 bg-slate-800 border-2 border-yellow-600/50 hover:border-yellow-400 flex flex-col justify-center items-center" activeColor="bg-yellow-500">
+                <h3 className="text-3xl font-bold text-yellow-400 text-center leading-tight">START MEDIUM<br /><span className="text-lg text-slate-300 font-normal">Level 2 (ระดับปานกลาง)</span></h3>
               </DwellButton>
-              <DwellButton onClick={() => selectDifficultyAndScan("Hard")} className="w-72 h-48 bg-slate-800 border-2 border-red-600/50 hover:border-red-400 flex flex-col justify-center items-center" activeColor="bg-red-500">
-                <h3 className="text-3xl font-bold text-red-400 text-center leading-tight">START ROUND 3<br /><span className="text-xl">(Hard)</span></h3>
+              <DwellButton onClick={() => selectDifficultyAndScan("Hard")} className="w-72 h-44 bg-slate-800 border-2 border-red-600/50 hover:border-red-400 flex flex-col justify-center items-center" activeColor="bg-red-500">
+                <h3 className="text-3xl font-bold text-red-400 text-center leading-tight">START HARD<br /><span className="text-lg text-slate-300 font-normal">Level 3 (ระดับท้าทาย)</span></h3>
               </DwellButton>
             </div>
           </div>

@@ -297,7 +297,7 @@ export default function DataDashboard() {
                       <h2 className="text-xl md:text-3xl font-black text-white tracking-wide">{activeTrainingSession.gameName}</h2>
                       <div className="flex flex-wrap items-center gap-2 mt-1">
                         <span className="bg-cyan-950 text-cyan-400 border border-cyan-900 px-2 py-0.5 rounded text-[10px] md:text-xs font-bold uppercase tracking-wider">PRO MODE</span>
-                        <span className="text-slate-400 text-[10px] md:text-xs">Level: {activeTrainingSession.difficulty} • 10 Rounds</span>
+                        <span className="text-slate-400 text-[10px] md:text-xs">Level: {activeTrainingSession.difficulty} • {activeTrainingSession.roundsCompleted || 10} Rounds</span>
                       </div>
                     </div>
                     <button onClick={exportToCSV} className="w-full sm:w-auto flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-600 px-5 py-2.5 rounded-xl text-xs md:text-sm font-bold text-white transition-all shadow-lg hover:shadow-xl active:scale-95">

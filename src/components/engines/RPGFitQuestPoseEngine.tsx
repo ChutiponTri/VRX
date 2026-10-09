@@ -51,6 +51,8 @@ export default function RPGFitQuestPoseEngine({ videoRef, canvasRef, onReady }: 
     // Discrete states, with hysteresis handled via separate enter/exit angle thresholds
     let leftKneeRaised = false;
     let rightKneeRaised = false;
+    let leftSideLegRaised = false;
+    let rightSideLegRaised = false;
     let isSquattingState = false;
     let lastStepTime = 0;
     let squatTimestamp = -Infinity;
@@ -61,6 +63,8 @@ export default function RPGFitQuestPoseEngine({ videoRef, canvasRef, onReady }: 
     let smoothedRKneeAngle: number | null = null;
     let smoothedLHipAngle: number | null = null;
     let smoothedRHipAngle: number | null = null;
+    let smoothedLLegAngle: number | null = null;
+    let smoothedRLegAngle: number | null = null;
     const SMOOTHING = 0.35; // 0-1, lower = smoother but slower to react
 
     const ema = (prev: number | null, next: number) => (prev === null ? next : prev + SMOOTHING * (next - prev));
@@ -116,7 +120,6 @@ export default function RPGFitQuestPoseEngine({ videoRef, canvasRef, onReady }: 
           drawingUtils.drawLandmarks(lm, { color: "rgba(250, 204, 21, 0.8)", lineWidth: 2, radius: 4 });
 
           const lShoulder = lm[11], rShoulder = lm[12];
-          const lWrist = lm[15], rWrist = lm[16];
           const lHip = lm[23], rHip = lm[24];
           const lKnee = lm[25], rKnee = lm[26];
           const lAnkle = lm[27], rAnkle = lm[28];
@@ -124,10 +127,6 @@ export default function RPGFitQuestPoseEngine({ videoRef, canvasRef, onReady }: 
           const now = performance.now();
 
           // --- Squat detection: knee bend angle (hip - knee - ankle) --------------
-          // Standing with a straight leg: hip, knee, ankle are nearly collinear,
-          // so the angle at the knee is close to 180°. Squatting bends the knee,
-          // dropping this angle toward ~90-130°. This needs all three leg
-          // landmarks confidently visible.
           if (isVisible(lHip, lKnee, lAnkle) && isVisible(rHip, rKnee, rAnkle)) {
             const rawL = angleAt(lKnee, lHip, lAnkle);
             const rawR = angleAt(rKnee, rHip, rAnkle);
@@ -140,26 +139,22 @@ export default function RPGFitQuestPoseEngine({ videoRef, canvasRef, onReady }: 
               const SQUAT_EXIT = 160;  // must rise above this to STOP being a squat
               const squatThreshold = isSquattingState ? SQUAT_EXIT : SQUAT_ENTER;
 
-              // DOWN = both legs bent (AND). UP (below) is either leg raised (OR).
               const bothBent = smoothedLKneeAngle < squatThreshold && smoothedRKneeAngle < squatThreshold;
 
               if (bothBent) squatTimestamp = now;
               isSquattingState = now - squatTimestamp < 250;
             }
           } else {
-            // Legs not confidently visible this frame: don't guess, hold "not squatting".
             isSquattingState = false;
           }
 
           // --- High-knee detection: hip angle (shoulder - hip - knee) -------------
-          // Standing: the torso (hip->shoulder) and thigh (hip->knee) point in
-          // roughly opposite directions, so this angle is close to 180°.
-          // Raising a knee swings the thigh forward/up, closing that angle.
+          // Raising a knee swings the thigh forward/up (march in place) -> UP
           if (isVisible(lShoulder, lHip, lKnee)) {
             const raw = angleAt(lHip, lShoulder, lKnee);
             if (raw !== null) {
               smoothedLHipAngle = ema(smoothedLHipAngle, raw);
-              const enterT = 130, exitT = 150;
+              const enterT = 135, exitT = 150;
               const t = leftKneeRaised ? exitT : enterT;
               const isUp = smoothedLHipAngle < t;
               if (isUp && !leftKneeRaised) { leftKneeRaised = true; lastStepTime = now; }
@@ -173,7 +168,7 @@ export default function RPGFitQuestPoseEngine({ videoRef, canvasRef, onReady }: 
             const raw = angleAt(rHip, rShoulder, rKnee);
             if (raw !== null) {
               smoothedRHipAngle = ema(smoothedRHipAngle, raw);
-              const enterT = 130, exitT = 150;
+              const enterT = 135, exitT = 150;
               const t = rightKneeRaised ? exitT : enterT;
               const isUp = smoothedRHipAngle < t;
               if (isUp && !rightKneeRaised) { rightKneeRaised = true; lastStepTime = now; }
@@ -183,16 +178,60 @@ export default function RPGFitQuestPoseEngine({ videoRef, canvasRef, onReady }: 
             rightKneeRaised = false;
           }
 
-          const isRunning = now - lastStepTime < 600; // 0.6s grace period to alternate legs
+          const isMarching = (now - lastStepTime < 800) || leftKneeRaised || rightKneeRaised;
 
-          // --- Arm raises (unchanged — simple and already robust) -----------------
-          const lArmRaised = lWrist.y < lShoulder.y;
-          const rArmRaised = rWrist.y < rShoulder.y;
+          // --- Side Leg Raise Detection (Lateral Abduction) -----------------------
+          // Note: The camera view is mirrored with CSS scale-x-[-1].
+          // - When user lifts their LEFT leg outwards (as in user photo 1):
+          //   In raw camera coords (facing user), user's left is towards +x.
+          //   In mirror reflection, user's left leg points to screen-left.
+          //   -> Controls LEFT.
+          // - When user lifts their RIGHT leg outwards (as in user photo 2):
+          //   In raw camera coords (facing user), user's right is towards -x.
+          //   In mirror reflection, user's right leg points to screen-right.
+          //   -> Controls RIGHT.
+          if (isVisible(lHip, lKnee) && isVisible(rHip, rKnee)) {
+            const SIDE_ENTER_ANGLE = 22; // degrees outward from vertical
+            const SIDE_EXIT_ANGLE = 14;
 
-          poseState.rpg.runUp = isRunning && !isSquattingState;
+            // 1. Left leg outward angle & lift
+            const lAnkleX = isVisible(lAnkle) ? lAnkle.x : lKnee.x;
+            const lAnkleY = isVisible(lAnkle) ? lAnkle.y : lKnee.y;
+            const rAnkleY = isVisible(rAnkle) ? rAnkle.y : rKnee.y;
+
+            const dxL = Math.max(lAnkleX - lHip.x, lKnee.x - lHip.x);
+            const dyL = Math.max(0.01, lAnkleY - lHip.y);
+            const rawLAngle = (Math.atan2(dxL, dyL) * 180) / Math.PI;
+            smoothedLLegAngle = ema(smoothedLLegAngle, rawLAngle);
+
+            // Left leg lifted higher than right support leg or knee lifted
+            const isLLifted = (lAnkleY < rAnkleY - 0.04) || (lKnee.y < rKnee.y - 0.03);
+            const tLeft = leftSideLegRaised ? SIDE_EXIT_ANGLE : SIDE_ENTER_ANGLE;
+            leftSideLegRaised = (smoothedLLegAngle > tLeft) && isLLifted;
+
+            // 2. Right leg outward angle & lift
+            const rAnkleX = isVisible(rAnkle) ? rAnkle.x : rKnee.x;
+            const dxR = Math.max(rHip.x - rAnkleX, rHip.x - rKnee.x);
+            const dyR = Math.max(0.01, rAnkleY - rHip.y);
+            const rawRAngle = (Math.atan2(dxR, dyR) * 180) / Math.PI;
+            smoothedRLegAngle = ema(smoothedRLegAngle, rawRAngle);
+
+            // Right leg lifted higher than left support leg or knee lifted
+            const isRLifted = (rAnkleY < lAnkleY - 0.04) || (rKnee.y < lKnee.y - 0.03);
+            const tRight = rightSideLegRaised ? SIDE_EXIT_ANGLE : SIDE_ENTER_ANGLE;
+            rightSideLegRaised = (smoothedRLegAngle > tRight) && isRLifted;
+          } else {
+            leftSideLegRaised = false;
+            rightSideLegRaised = false;
+          }
+
+          // Prioritize side raises and squatting over walking forward
+          const isWalkingUp = isMarching && !isSquattingState && !leftSideLegRaised && !rightSideLegRaised;
+
+          poseState.rpg.runUp = isWalkingUp;
           poseState.rpg.squatDown = isSquattingState;
-          poseState.rpg.turnLeft = lArmRaised;
-          poseState.rpg.turnRight = rArmRaised;
+          poseState.rpg.turnLeft = leftSideLegRaised && !isSquattingState;
+          poseState.rpg.turnRight = rightSideLegRaised && !isSquattingState;
           poseState.isActive = true;
         }
       }

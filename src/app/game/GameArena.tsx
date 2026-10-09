@@ -65,7 +65,9 @@ export default function GameArena({ searchParams }: {
 
   // Check if current game needs full screen background camera
   const isFullScreenCamera =
+    gameName === "Muay Thai Game" ||
     gameName === "Muay Thai Arena" ||
+    gameName === "Squat Game" ||
     gameName === "Rich Or Mess" ||
     gameName === "FitQuest";
 
@@ -136,11 +138,11 @@ export default function GameArena({ searchParams }: {
           {/* GAME COMPONENTS (ส่ง isEngineReady หรือแสดงเฉพาะตอนที่ ready ก็ได้ค่ะ) */}
           {isEngineReady && (
             <>
-              {gameName === "Squat Surfer" && <SquatSurfer onGameOver={handleGameOver} />}
-              {gameName === "Muay Thai Arena" && <MuayThaiArena onGameOver={handleGameOver} />}
-              {gameName === "Rich Or Mess" && <RichOrMess onGameOver={handleGameOver} />}
+              {(gameName === "Block Jump Game" || gameName === "Squat Surfer") && <SquatSurfer onGameOver={handleGameOver} />}
+              {(gameName === "Muay Thai Game" || gameName === "Muay Thai Arena") && <MuayThaiArena onGameOver={handleGameOver} />}
+              {(gameName === "Squat Game" || gameName === "Rich Or Mess") && <RichOrMess onGameOver={handleGameOver} />}
               {gameName === "FitQuest" && <FitQuest onGameOver={handleGameOver} />}
-              {gameName === "RPG Fit Quest" && <RPGFitQuest onGameOver={handleGameOver} />}
+              {(gameName === "Walking Game" || gameName === "RPG Fit Quest") && <RPGFitQuest onGameOver={handleGameOver} />}
             </>
           )}
 
@@ -162,11 +164,11 @@ export default function GameArena({ searchParams }: {
           </div>
 
           {/* AI ENGINES (Tracking logic) */}
-          {gameName === "Squat Surfer" && <SquatSurferPoseEngine videoRef={bgVideoRef} canvasRef={poseCanvasRef} onReady={handleEngineReady} />}
-          {gameName === "Muay Thai Arena" && <MuayThaiPoseEngine videoRef={bgVideoRef} canvasRef={poseCanvasRef} onReady={handleEngineReady} />}
-          {gameName === "Rich Or Mess" && <RichOrMessPoseEngine videoRef={bgVideoRef} canvasRef={poseCanvasRef} onReady={handleEngineReady} />}
+          {(gameName === "Block Jump Game" || gameName === "Squat Surfer") && <SquatSurferPoseEngine videoRef={bgVideoRef} canvasRef={poseCanvasRef} onReady={handleEngineReady} />}
+          {(gameName === "Muay Thai Game" || gameName === "Muay Thai Arena") && <MuayThaiPoseEngine videoRef={bgVideoRef} canvasRef={poseCanvasRef} onReady={handleEngineReady} />}
+          {(gameName === "Squat Game" || gameName === "Rich Or Mess") && <RichOrMessPoseEngine videoRef={bgVideoRef} canvasRef={poseCanvasRef} onReady={handleEngineReady} />}
           {gameName === "FitQuest" && <FitQuestPoseEngine videoRef={bgVideoRef} canvasRef={poseCanvasRef} onReady={handleEngineReady} />}
-          {gameName === "RPG Fit Quest" && <RPGFitQuestPoseEngine videoRef={bgVideoRef} canvasRef={poseCanvasRef} onReady={handleEngineReady} />}
+          {(gameName === "Walking Game" || gameName === "RPG Fit Quest") && <RPGFitQuestPoseEngine videoRef={bgVideoRef} canvasRef={poseCanvasRef} onReady={handleEngineReady} />}
         </>
       )}
 

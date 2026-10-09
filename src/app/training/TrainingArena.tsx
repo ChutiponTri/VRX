@@ -32,13 +32,17 @@ export default function TrainingArena({ searchParams }: {
     userId?: string;
     game?: string;
     diff?: string;
+    rounds?: string;
+    duration?: string;
   }
 }) {
   const router = useRouter();
 
   const userId = searchParams.userId as Id<"users">;
-  const gameName = searchParams.game || "Squat Surfer";
+  const gameName = searchParams.game || "Block Jump Game";
   const diff = searchParams.diff || "Medium";
+  const targetRounds = searchParams.rounds ? parseInt(searchParams.rounds) : 5;
+  const roundDuration = searchParams.duration ? parseInt(searchParams.duration) : 180; // 3 min per round default
 
   const activeUser = useQuery(api.users.getUserStats, userId ? { userId } : "skip");
   const saveScore = useMutation(api.users.saveScore);
@@ -51,7 +55,7 @@ export default function TrainingArena({ searchParams }: {
   const [rhrSamples, setRhrSamples] = useState<number[]>([]);
 
   const [round, setRound] = useState(1);
-  const [timeLeft, setTimeLeft] = useState(60); // 1 min per round
+  const [timeLeft, setTimeLeft] = useState(roundDuration);
   const [cumulativeScore, setCumulativeScore] = useState(0);
 
   const [targetMin, setTargetMin] = useState(0);
@@ -64,7 +68,11 @@ export default function TrainingArena({ searchParams }: {
 
   const bgVideoRef = useRef<HTMLVideoElement>(null);
   const poseCanvasRef = useRef<HTMLCanvasElement>(null);
-  const isFullScreenCamera = ["Muay Thai Arena", "Rich Or Mess", "FitQuest"].includes(gameName);
+  const isFullScreenCamera = [
+    "Muay Thai Game", "Muay Thai Arena",
+    "Squat Game", "Rich Or Mess",
+    "FitQuest"
+  ].includes(gameName);
 
   const [isEngineReady, setIsEngineReady] = useState(false);
   // รีเซ็ตสถานะ Engine เมื่อเริ่มเล่นใหม่
@@ -175,10 +183,14 @@ export default function TrainingArena({ searchParams }: {
   // 2. Shield the Game component from UI state changes (Timer/HR)
   const renderedGame = React.useMemo(() => {
     switch (gameName) {
+      case "Block Jump Game":
       case "Squat Surfer": return <SquatSurferTraining onGameOver={handleGameOver} />;
+      case "Muay Thai Game":
       case "Muay Thai Arena": return <MuayThaiArenaTraining onGameOver={handleGameOver} />;
+      case "Squat Game":
       case "Rich Or Mess": return <RichOrMessTraining onGameOver={handleGameOver} />;
       case "FitQuest": return <FitQuestTraining onGameOver={handleGameOver} />;
+      case "Walking Game":
       case "RPG Fit Quest": return <RPGFitQuestTraining onGameOver={handleGameOver} />;
       default: return null;
     }
@@ -187,10 +199,14 @@ export default function TrainingArena({ searchParams }: {
   // 3. Shield the Engine component from UI state changes
   const renderedEngine = React.useMemo(() => {
     switch (gameName) {
+      case "Block Jump Game":
       case "Squat Surfer": return <SquatSurferPoseEngine videoRef={bgVideoRef} canvasRef={poseCanvasRef} onReady={handleEngineReady} />;
+      case "Muay Thai Game":
       case "Muay Thai Arena": return <MuayThaiPoseEngine videoRef={bgVideoRef} canvasRef={poseCanvasRef} onReady={handleEngineReady} />;
+      case "Squat Game":
       case "Rich Or Mess": return <RichOrMessPoseEngine videoRef={bgVideoRef} canvasRef={poseCanvasRef} onReady={handleEngineReady} />;
       case "FitQuest": return <FitQuestPoseEngine videoRef={bgVideoRef} canvasRef={poseCanvasRef} onReady={handleEngineReady} />;
+      case "Walking Game":
       case "RPG Fit Quest": return <RPGFitQuestPoseEngine videoRef={bgVideoRef} canvasRef={poseCanvasRef} onReady={handleEngineReady} />;
       default: return null;
     }
@@ -326,7 +342,7 @@ export default function TrainingArena({ searchParams }: {
     if (timeLeft > 0) return; // ถ้าเวลายังไม่หมด ไม่ต้องทำอะไร
 
     if (phase === "PLAYING") {
-      if (round >= 10) {
+      if (round >= targetRounds) {
 
         // 👉 พระเอกของเราอยู่ตรงนี้ค่ะ! เช็คว่าเซฟไปหรือยัง ถ้ายัง ถึงจะยอมยิง API
         if (!hasSavedRef.current) {
@@ -337,7 +353,7 @@ export default function TrainingArena({ searchParams }: {
             gameName,
             difficulty: diff,
             totalScore: cumulativeScore,
-            roundsCompleted: 10,
+            roundsCompleted: targetRounds,
             hrTargetMin: targetMin,
             hrTargetMax: targetMax,
             hrTimeline: hrTimelineRef.current,
@@ -352,9 +368,9 @@ export default function TrainingArena({ searchParams }: {
     } else if (phase === "REST") {
       setPhase("PLAYING");
       setRound(r => r + 1);
-      setTimeLeft(60);
+      setTimeLeft(roundDuration);
     }
-  }, [timeLeft, phase, round, cumulativeScore, targetMin, targetMax, userId, gameName, diff, saveTraining]);
+  }, [timeLeft, phase, round, targetRounds, roundDuration, cumulativeScore, targetMin, targetMax, userId, gameName, diff, saveTraining]);
 
   if (!activeUser?.user) return <div className="min-h-screen bg-slate-950 flex items-center justify-center text-white">Loading...</div>;
 
@@ -504,11 +520,11 @@ export default function TrainingArena({ searchParams }: {
             <div className="bg-slate-900/90 border border-cyan-500/50 rounded-xl p-4 w-64 shadow-2xl backdrop-blur-md">
               <div className="flex justify-between items-center mb-2">
                 <span className="text-xs text-slate-400 font-bold uppercase tracking-widest">Training</span>
-                <span className="text-cyan-400 font-bold">Round {round}/10</span>
+                <span className="text-cyan-400 font-bold">Round {round}/{targetRounds}</span>
               </div>
 
               <div className="text-4xl font-mono font-black text-white mb-4 text-right">
-                00:{String(timeLeft).padStart(2, '0')}
+                {String(Math.floor(timeLeft / 60)).padStart(2, '0')}:{String(timeLeft % 60).padStart(2, '0')}
               </div>
 
               {/* HEART RATE - big, color-coded */}
@@ -596,7 +612,7 @@ export default function TrainingArena({ searchParams }: {
       {phase === "RESULTS" && (
         <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-950 z-0 text-white">
           <h2 className="text-5xl font-black text-emerald-400 uppercase mb-4">Training Complete</h2>
-          <p className="text-slate-400 mb-8">10 Rounds Completed Successfully</p>
+          <p className="text-slate-400 mb-8">{targetRounds} Rounds Completed Successfully</p>
 
           <DwellButton
             onClick={() => {
