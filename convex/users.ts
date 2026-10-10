@@ -134,3 +134,57 @@ export const getNormalSessions = query({
       .take(50); // Adjust limit as needed
   },
 });
+
+// ─── ADMIN MUTATIONS ────────────────────────────────────────────────────────
+
+// Get all users (full list, no limit) — for admin panel
+export const getAllUsersAdmin = query({
+  args: {},
+  handler: async (ctx) => {
+    return await ctx.db.query("users").order("desc").collect();
+  },
+});
+
+// Update user profile info
+export const updateUser = mutation({
+  args: {
+    userId: v.id("users"),
+    name: v.string(),
+    age: v.number(),
+    profile: v.union(v.literal("General"), v.literal("Patient")),
+  },
+  handler: async (ctx, args) => {
+    await ctx.db.patch(args.userId, {
+      name: args.name,
+      age: args.age,
+      profile: args.profile,
+    });
+  },
+});
+
+// Delete a user and all their associated data (cascade)
+export const deleteUser = mutation({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    // 1. Delete all scores
+    const scores = await ctx.db
+      .query("scores")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .collect();
+    for (const score of scores) {
+      await ctx.db.delete(score._id);
+    }
+
+    // 2. Delete all training sessions
+    const sessions = await ctx.db
+      .query("training_sessions")
+      .withIndex("by_user", (q) => q.eq("userId", args.userId))
+      .collect();
+    for (const session of sessions) {
+      await ctx.db.delete(session._id);
+    }
+
+    // 3. Delete the user document itself
+    await ctx.db.delete(args.userId);
+  },
+});
