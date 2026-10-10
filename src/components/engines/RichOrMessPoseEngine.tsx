@@ -75,6 +75,9 @@ export default function RichOrMessPoseEngine({ videoRef, canvasRef, onReady }: E
           poseState.leftWrist = { x: (1 - lm[15].x) * w, y: lm[15].y * h };
           poseState.rightWrist = { x: (1 - lm[16].x) * w, y: lm[16].y * h };
 
+          // Track nose for squat detection (nose drops when squatting)
+          poseState.nose = { x: (1 - lm[0].x) * w, y: lm[0].y * h };
+
           // Visual Feedback: Draw a glowing string between wrists (The Basket Handle)
           if (lm[15].visibility > 0.5 && lm[16].visibility > 0.5) {
             ctx.beginPath();

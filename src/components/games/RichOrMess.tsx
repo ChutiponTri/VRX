@@ -190,6 +190,44 @@ export default function RichOrMess({ onGameOver, initialScore = 0 }: GameProps) 
       ctx.beginPath();
       ctx.ellipse(basketX, basketY + 50, glowWidth, 25, 0, 0, Math.PI * 2);
       ctx.fill();
+
+      // MEGA BASKET UI: Show bracket markers + text when squatting
+      if (state.isCurrentlySquatting) {
+        const catchZoneLeft = basketX - glowWidth;
+        const catchZoneRight = basketX + glowWidth;
+        const bracketY = basketY - 80;
+        const bracketLen = 30;
+        const bracketThick = 4;
+
+        // Left bracket [
+        ctx.strokeStyle = "rgba(74, 222, 128, 0.9)";
+        ctx.lineWidth = bracketThick;
+        ctx.lineCap = "round";
+        ctx.shadowBlur = 15;
+        ctx.shadowColor = "rgba(74, 222, 128, 1)";
+        ctx.beginPath();
+        ctx.moveTo(catchZoneLeft + bracketLen, bracketY - bracketLen);
+        ctx.lineTo(catchZoneLeft, bracketY - bracketLen);
+        ctx.lineTo(catchZoneLeft, bracketY + bracketLen);
+        ctx.lineTo(catchZoneLeft + bracketLen, bracketY + bracketLen);
+        ctx.stroke();
+
+        // Right bracket ]
+        ctx.beginPath();
+        ctx.moveTo(catchZoneRight - bracketLen, bracketY - bracketLen);
+        ctx.lineTo(catchZoneRight, bracketY - bracketLen);
+        ctx.lineTo(catchZoneRight, bracketY + bracketLen);
+        ctx.lineTo(catchZoneRight - bracketLen, bracketY + bracketLen);
+        ctx.stroke();
+
+        // Center badge: ✨ 1.6X MEGA BASKET ✨
+        ctx.shadowBlur = 20;
+        ctx.shadowColor = "rgba(74, 222, 128, 0.8)";
+        ctx.font = "bold 26px 'Kanit', sans-serif";
+        ctx.textAlign = "center";
+        ctx.fillStyle = "rgba(74, 222, 128, 1)";
+        ctx.fillText("✨ SQUAT BONUS: ตะกร้าขยาย 1.6× ✨", basketX, bracketY - bracketLen - 18);
+      }
       ctx.restore();
 
       // 3. Update & Draw Items

@@ -340,10 +340,17 @@ export default function AppEntry() {
         {/* DIFFICULTY */}
         {step === "DIFFICULTY" && (
           <div className="w-full max-w-5xl flex flex-col items-center mt-8">
-            <h2 className="text-3xl mb-2 uppercase">Select Intensity & Duration</h2>
+            <h2 className="text-3xl mb-2 uppercase">Select Intensity{isProMode || selectedGame !== "Block Jump Game" ? " & Duration" : ""}</h2>
             <p className="text-slate-400 mb-6">Game: <span className="text-cyan-400 font-bold">{selectedGame}</span></p>
+            {/* Block Jump Game in normal mode is an endless runner — no time limit */}
+            {!isProMode && selectedGame === "Block Jump Game" && (
+              <div className="w-full max-w-2xl bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4 mb-8 text-center">
+                <span className="text-sm text-slate-400">🏃 โหมดปกติ: วิ่งไม่มีกำหนดเวลา — เกมจบเมื่อชนสิ่งกีดขวาง</span>
+              </div>
+            )}
 
-            {/* Session Duration Selector: 3 นาที x 5 รอบ vs 3 นาที x 10 รอบ */}
+            {/* Session Duration Selector: only shown in Training (Pro) mode, or for timed games */}
+            {(isProMode || selectedGame !== "Block Jump Game") && (
             <div className="w-full max-w-2xl bg-slate-900/80 border border-slate-700/80 rounded-2xl p-4 mb-8 backdrop-blur-md flex flex-col items-center">
               <span className="text-xs uppercase tracking-widest text-slate-400 font-bold mb-3">
                 Workout Duration (เลือกระยะเวลาการเล่น)
@@ -386,6 +393,7 @@ export default function AppEntry() {
                 </DwellButton>
               </div>
             </div>
+            )}
 
             {/* Intensity Selection Buttons */}
             <div className="flex gap-6 w-full justify-center">

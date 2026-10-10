@@ -23,6 +23,7 @@ import RichOrMessTraining from "@/components/games/RichOrMessTraining";
 import MuayThaiArenaTraining from "@/components/games/MuayThaiArenaTraining";
 import FitQuestTraining from "@/components/games/FitQuestTraining";
 import RealtimeHRGraph from "@/components/RealtimeHRGraph";
+import GiveUpManager from "@/components/GiveUpManager";
 
 // Added "CALIBRATING" to the phases
 type RoundPhase = "AWAITING_CONNECTION" | "CALIBRATING" | "PLAYING" | "REST" | "RESULTS";
@@ -46,6 +47,9 @@ export default function TrainingArena({ searchParams }: {
 
   const activeUser = useQuery(api.users.getUserStats, userId ? { userId } : "skip");
   const saveScore = useMutation(api.users.saveScore);
+  const saveTraining = useMutation(api.users.saveTrainingSession);
+  const hrTimelineRef = useRef<number[]>([]);
+  const hasSavedRef = useRef(false);
 
   const [phase, setPhase] = useState<RoundPhase>("AWAITING_CONNECTION");
   const [connectionError, setConnectionError] = useState<string | null>(null);
@@ -180,6 +184,23 @@ export default function TrainingArena({ searchParams }: {
     setCumulativeScore(prev => prev + roundScore);
   }, []);
 
+  const handleGiveUp = React.useCallback(() => {
+    if (!hasSavedRef.current) {
+      hasSavedRef.current = true;
+      saveTraining({
+        userId,
+        gameName,
+        difficulty: diff,
+        totalScore: cumulativeScore,
+        roundsCompleted: Math.max(1, round - 1),
+        hrTargetMin: targetMin,
+        hrTargetMax: targetMax,
+        hrTimeline: hrTimelineRef.current,
+      }).catch(err => console.error("Failed to save training session on give up:", err));
+    }
+    setPhase("RESULTS");
+  }, [userId, gameName, diff, cumulativeScore, round, targetMin, targetMax, saveTraining]);
+
   // 2. Shield the Game component from UI state changes (Timer/HR)
   const renderedGame = React.useMemo(() => {
     switch (gameName) {
@@ -287,15 +308,6 @@ export default function TrainingArena({ searchParams }: {
     }
     return { color: "text-red-500", bg: "bg-red-950/50", border: "border-red-600", label: "DANGER" };
   }
-
-  // 1. Add the mutation hook at the top
-  const saveTraining = useMutation(api.users.saveTrainingSession);
-
-  // 2. Add a ref to hold the array of heart rates locally
-  const hrTimelineRef = useRef<number[]>([]);
-
-  // 👉 เพิ่มบรรทัดนี้เข้าไปค่ะ (เพื่อล็อคไม่ให้เซฟซ้ำ)
-  const hasSavedRef = useRef(false);
 
   // 3. Update the existing DYNAMIC HR OPTIMIZATION ENGINE useEffect
   // We will simply push the current HR to the array every 5 seconds.
@@ -583,6 +595,12 @@ export default function TrainingArena({ searchParams }: {
 
           {/* Render Memoized Engine Here */}
           {renderedEngine}
+
+          {/* Universal Peace Sign Give Up System */}
+          <GiveUpManager
+            videoRef={bgVideoRef}
+            onGiveUp={handleGiveUp}
+          />
 
           {/* เรียกใช้งาน REALTIME DRAGGABLE HR GRAPH ตรงนี้ */}
           <RealtimeHRGraph

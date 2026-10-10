@@ -21,6 +21,7 @@ import FitQuest from "@/components/games/FitQuest";
 import FitQuestPoseEngine from "@/components/engines/FitQuestPoseEngine";
 import RPGFitQuest from "@/components/games/RPGFitQuest";
 import RPGFitQuestPoseEngine from "@/components/engines/RPGFitQuestPoseEngine";
+import GiveUpManager from "@/components/GiveUpManager";
 
 type GamePhase = "PLAYING" | "POST_GAME_SCAN" | "RESULTS" | "RESTART_SCAN" | "SAVING";
 
@@ -143,6 +144,7 @@ export default function GameArena({ searchParams }: {
               {(gameName === "Squat Game" || gameName === "Rich Or Mess") && <RichOrMess onGameOver={handleGameOver} />}
               {gameName === "FitQuest" && <FitQuest onGameOver={handleGameOver} />}
               {(gameName === "Walking Game" || gameName === "RPG Fit Quest") && <RPGFitQuest onGameOver={handleGameOver} />}
+              <GiveUpManager videoRef={bgVideoRef} onGiveUp={() => handleGameOver(finalScore)} />
             </>
           )}
 

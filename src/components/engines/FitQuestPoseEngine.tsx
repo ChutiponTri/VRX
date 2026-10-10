@@ -89,8 +89,6 @@ export default function FitQuestPoseEngine({ videoRef, canvasRef, onReady }: Eng
           poseState.rightAnkle = { x: (1 - lm[28].x) * w, y: lm[28].y * h };
           poseState.nose = { x: (1 - lm[0].x) * w, y: lm[0].y * h };
 
-          // Peace Sign Detection (Give Up) - Wrists raised above nose
-          poseState.isPeaceSign = lm[15].y < lm[0].y - 0.05 || lm[16].y < lm[0].y - 0.05;
           poseState.isActive = true;
         }
       }

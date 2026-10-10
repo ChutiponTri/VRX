@@ -78,11 +78,6 @@ export default function PoseEngine({ videoRef, canvasRef }: PoseEngineProps) {
           else if ((1 - lm[0].x) > 0.65) poseState.lateralPosition = "RIGHT";
           else poseState.lateralPosition = "CENTER";
 
-          // Replay Gesture: Is either wrist raised up near/above the nose?
-          const isLeftUp = lm[15].y < lm[0].y + 0.1;
-          const isRightUp = lm[16].y < lm[0].y + 0.1;
-          poseState.isPeaceSign = isLeftUp || isRightUp;
-
           poseState.isActive = true;
         }
       }
