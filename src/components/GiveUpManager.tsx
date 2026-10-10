@@ -102,44 +102,34 @@ export default function GiveUpManager({
 
     initHandTracker();
 
+    // --- Inference interval: ~8 FPS (120ms) via setInterval ---
+    // Running off RAF keeps hand detection from competing with game render frames,
+    // eliminating the stutter that was caused by back-to-back GPU workloads.
+    const INTERVAL_MS = 120;
+    const inferenceId = setInterval(() => {
+      if (isDisposed || !handLandmarker || !videoRef.current) return;
+      if (videoRef.current.readyState < 2 || videoRef.current.videoWidth === 0) return;
+      try {
+        const results = handLandmarker.detectForVideo(videoRef.current, performance.now());
+        let peaceDetected = false;
+        if (results.landmarks && results.landmarks.length > 0) {
+          for (const lm of results.landmarks) {
+            if (checkTwoFingerPeaceSign(lm)) { peaceDetected = true; break; }
+          }
+        }
+        poseState.isPeaceSign = peaceDetected;
+      } catch (e) { /* ignore transient glitches */ }
+    }, INTERVAL_MS);
+
+    // --- Timer loop: lightweight RAF only for smooth countdown UI ---
     const loop = (now: number) => {
       if (isDisposed) return;
-      const dt = Math.min(0.1, (now - lastFrameTime) / 1000);
+      const dt = Math.min(0.15, (now - lastFrameTime) / 1000);
       lastFrameTime = now;
 
-      // Run Hand Landmark inference ~15 FPS (every 65ms) to save CPU/GPU
-      if (
-        handLandmarker &&
-        videoRef.current &&
-        videoRef.current.readyState >= 2 &&
-        videoRef.current.videoWidth > 0 &&
-        now - lastInferenceTime > 65
-      ) {
-        lastInferenceTime = now;
-        try {
-          const results = handLandmarker.detectForVideo(videoRef.current, now);
-          let peaceDetected = false;
-
-          if (results.landmarks && results.landmarks.length > 0) {
-            for (const lm of results.landmarks) {
-              if (checkTwoFingerPeaceSign(lm)) {
-                peaceDetected = true;
-                break;
-              }
-            }
-          }
-
-          poseState.isPeaceSign = peaceDetected;
-        } catch (e) {
-          // ignore transient video frame read glitches
-        }
-      }
-
-      // Update timer based on peace sign state
       if (poseState.isPeaceSign) {
         timerRef.current = Math.min(holdDuration, timerRef.current + dt);
         setTimer(timerRef.current);
-
         if (timerRef.current >= holdDuration && !hasTriggeredRef.current) {
           hasTriggeredRef.current = true;
           poseState.isPeaceSign = false;
@@ -160,6 +150,7 @@ export default function GiveUpManager({
 
     return () => {
       isDisposed = true;
+      clearInterval(inferenceId);
       cancelAnimationFrame(rafId);
       poseState.isPeaceSign = false;
       if (handLandmarker) {

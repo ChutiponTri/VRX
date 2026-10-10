@@ -176,8 +176,10 @@ export default function RPGFitQuestPoseEngine({ videoRef, canvasRef, onReady }: 
           // SQUAT DETERMINATION:
           // In a squat, BOTH knees/hips bend at the same time (symmetric).
           // In high knees (walking), only ONE knee is raised at a time while the other supports.
-          const SQUAT_KNEE_ENTER = 152;
-          const SQUAT_KNEE_EXIT = 162;
+          // ENTER/EXIT hysteresis — raised to accept shallower squats while keeping a margin
+          // below the high-knee hip threshold (enterT=135°) to avoid crosstalk.
+          const SQUAT_KNEE_ENTER = 158; // was 152 — accepts partial squats
+          const SQUAT_KNEE_EXIT = 170;  // was 162 — sticky until clearly standing again
           const kThreshold = isSquattingState ? SQUAT_KNEE_EXIT : SQUAT_KNEE_ENTER;
 
           // Condition 1: Both knees bent simultaneously (hip-knee-ankle)
@@ -188,19 +190,19 @@ export default function RPGFitQuestPoseEngine({ videoRef, canvasRef, onReady }: 
             smoothedRKneeAngle < kThreshold;
 
           // Condition 2: Both hips flexed simultaneously (shoulder-hip-knee)
-          // In squat, both hips fold forward (< 145 deg). In marching, only one hip folds while other stays ~170 deg.
+          // Must stay clearly ABOVE high-knee enterT (135°) to never clash with march.
+          // 150° leaves a 15° safety gap from 135°.
           const bothHipsFlexed =
             smoothedLHipAngle !== null &&
             smoothedRHipAngle !== null &&
-            smoothedLHipAngle < 145 &&
-            smoothedRHipAngle < 145;
+            smoothedLHipAngle < 150 &&
+            smoothedRHipAngle < 150;
 
-          // Condition 3: At least one knee bent (< kThreshold) and both hips flexed (< 148)
-          // Perfect for 3/4 angled view where one ankle is partially occluded
+          // Condition 3: Angled camera — at least one knee bent + both hips flexed (< 153°)
           const oneKneeBent =
             (smoothedLKneeAngle !== null && smoothedLKneeAngle < kThreshold) ||
             (smoothedRKneeAngle !== null && smoothedRKneeAngle < kThreshold);
-          const angledSquat = oneKneeBent && (smoothedLHipAngle !== null && smoothedRHipAngle !== null && smoothedLHipAngle < 148 && smoothedRHipAngle < 148);
+          const angledSquat = oneKneeBent && (smoothedLHipAngle !== null && smoothedRHipAngle !== null && smoothedLHipAngle < 153 && smoothedRHipAngle < 153);
 
           const isSquatDetected = bothKneesBent || bothHipsFlexed || angledSquat;
 
