@@ -86,13 +86,41 @@ export default function MediaPipeEngine() {
         canvasCtx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
 
         if (results.landmarks && results.landmarks.length > 0) {
-          drawingUtils.drawConnectors(results.landmarks[0], HandLandmarker.HAND_CONNECTIONS, CONNECTOR_STYLE);
-          drawingUtils.drawLandmarks(results.landmarks[0], LANDMARK_STYLE);
+          const lm = results.landmarks[0];
+          drawingUtils.drawConnectors(lm, HandLandmarker.HAND_CONNECTIONS, CONNECTOR_STYLE);
+          drawingUtils.drawLandmarks(lm, LANDMARK_STYLE);
 
-          const indexFinger = results.landmarks[0][8];
+          const wrist = lm[0];
+          const thumbTip = lm[4];
+          const indexFinger = lm[8];
+          const middleMcp = lm[9];
+
           cursorState.x = (1 - indexFinger.x) * window.innerWidth;
           cursorState.y = indexFinger.y * window.innerHeight;
           cursorState.isActive = true;
+
+          // Scale-invariant Pinch Detection (Thumb tip + Index finger tip)
+          const pinchDist = Math.hypot(thumbTip.x - indexFinger.x, thumbTip.y - indexFinger.y);
+          const handScale = Math.hypot(middleMcp.x - wrist.x, middleMcp.y - wrist.y);
+          const pinchRatio = handScale > 0.001 ? pinchDist / handScale : 1.0;
+
+          // Hysteresis: enter pinch at < 0.32, exit pinch at > 0.45
+          const PINCH_ENTER = 0.32;
+          const PINCH_EXIT = 0.45;
+          if (cursorState.isPinching) {
+            cursorState.isPinching = pinchRatio < PINCH_EXIT;
+          } else {
+            cursorState.isPinching = pinchRatio < PINCH_ENTER;
+          }
+
+          if (cursorState.isPinching) {
+            canvasCtx.beginPath();
+            canvasCtx.arc(thumbTip.x * canvasRef.current.width, thumbTip.y * canvasRef.current.height, 8, 0, 2 * Math.PI);
+            canvasCtx.fillStyle = "#10b981";
+            canvasCtx.fill();
+          }
+        } else {
+          cursorState.isPinching = false;
         }
       }
 

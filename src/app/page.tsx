@@ -207,12 +207,17 @@ export default function AppEntry() {
         {/* STEP 1: Select User or Create New */}
         {step === "SELECT_USER" && (
           <div className="w-full max-w-4xl h-auto flex flex-col items-center">
-            <h2 className="text-3xl mb-6">WHO IS PLAYING?</h2>
+            <h2 className="text-3xl mb-3">WHO IS PLAYING?</h2>
+            <p className="text-xs text-slate-400 mb-5 flex items-center gap-2">
+              <span>🤏 Pinch & drag to scroll (จีบนิ้วค้างไว้เพื่อเลื่อน)</span>
+              <span>•</span>
+              <span>⏱️ Hover to select (ชี้ค้างเพื่อเลือก)</span>
+            </p>
 
             {/* Scrollable Container: ใช้ max-h-[300px] แถวเดียวสูงพอดี 1 แถว ถ้ามากกว่า 2 แถวจะล็อกไว้ที่ 2 แถวแล้ว scroll */}
             <div
               id="player-scroll-container"
-              className="w-full max-h-75 overflow-y-auto p-3 flex gap-6 flex-wrap justify-center mb-6 scroll-smooth scrollbar-thin scrollbar-thumb-cyan-500 scrollbar-track-slate-800"
+              className="w-full max-h-75 overflow-y-auto p-3 flex gap-6 flex-wrap justify-center mb-6 scrollbar-thin scrollbar-thumb-cyan-500 scrollbar-track-slate-800"
             >
               {users?.map((user) => (
                 <DwellButton

@@ -45,6 +45,7 @@ export default function DwellButton({
       if (buttonRef.current) {
         const rect = buttonRef.current.getBoundingClientRect();
         const isInside =
+          !cursorState.isPinching &&
           cursorState.x >= rect.left &&
           cursorState.x <= rect.right &&
           cursorState.y >= rect.top &&
