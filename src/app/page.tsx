@@ -95,6 +95,7 @@ export default function AppEntry() {
   const selectDifficultyAndScan = (difficulty: string) => {
     setSelectedDiff(difficulty);
     if (!isProMode) {
+      // Normal mode: ถ้าเป็นเกมที่ไม่มีเวลา (Block Jump) ให้ไปเลย, เกมอื่น scan RHR ก่อน
       setStep("PRE_GAME_RHR");
     } else {
       if (!selectedUserId || !selectedGame) return;
@@ -121,12 +122,13 @@ export default function AppEntry() {
     if (!selectedUserId || !selectedGame || !selectedDiff) return;
 
     // Construct the URL with required game parameters
+    // Normal mode: always 1 round, 3 min. User can replay themselves.
     const query = new URLSearchParams({
       userId: selectedUserId,
       game: selectedGame,
       diff: selectedDiff,
       rhr: bpm.toString(),
-      rounds: sessionRounds.toString(),
+      rounds: "1",
       duration: "180"
     });
 
@@ -334,23 +336,41 @@ export default function AppEntry() {
                 <p className="text-slate-400 text-center text-sm">Focus: March in place, Lateral Leg Raise, Squat</p>
               </DwellButton>
             </div>
+
+            {/* FitQuest Special Button */}
+            <div className="mt-12 gap-6 flex justify-center w-full">
+              <DwellButton
+                onClick={() => { setSelectedGame("FitQuest"); setStep("DIFFICULTY"); }}
+                className="w-32 h-32 rounded-full bg-slate-900 border-4 border-cyan-600/50 hover:border-cyan-400 flex flex-col justify-center items-center shadow-[0_0_20px_rgba(0,229,255,0.3)] transition-all"
+                activeColor="bg-cyan-500"
+              >
+                <span className="text-4xl mb-1">🏃</span>
+                <span className="text-xs font-bold text-cyan-400 tracking-widest">FITQUEST</span>
+              </DwellButton>
+            </div>
           </div>
         )}
 
         {/* DIFFICULTY */}
         {step === "DIFFICULTY" && (
           <div className="w-full max-w-5xl flex flex-col items-center mt-8">
-            <h2 className="text-3xl mb-2 uppercase">Select Intensity{isProMode || selectedGame !== "Block Jump Game" ? " & Duration" : ""}</h2>
+            <h2 className="text-3xl mb-2 uppercase">Select Intensity{isProMode ? " & Duration" : ""}</h2>
             <p className="text-slate-400 mb-6">Game: <span className="text-cyan-400 font-bold">{selectedGame}</span></p>
-            {/* Block Jump Game in normal mode is an endless runner — no time limit */}
+
+            {/* Info banners for normal mode */}
             {!isProMode && selectedGame === "Block Jump Game" && (
               <div className="w-full max-w-2xl bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4 mb-8 text-center">
                 <span className="text-sm text-slate-400">🏃 โหมดปกติ: วิ่งไม่มีกำหนดเวลา — เกมจบเมื่อชนสิ่งกีดขวาง</span>
               </div>
             )}
+            {!isProMode && selectedGame !== "Block Jump Game" && (
+              <div className="w-full max-w-2xl bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4 mb-8 text-center">
+                <span className="text-sm text-slate-400">⏱️ โหมดปกติ: เล่น 1 รอบ 3 นาที — กด Replay เพื่อเล่นซ้ำได้</span>
+              </div>
+            )}
 
-            {/* Session Duration Selector: only shown in Training (Pro) mode, or for timed games */}
-            {(isProMode || selectedGame !== "Block Jump Game") && (
+            {/* Session Duration Selector: only shown in Pro mode */}
+            {isProMode && (
             <div className="w-full max-w-2xl bg-slate-900/80 border border-slate-700/80 rounded-2xl p-4 mb-8 backdrop-blur-md flex flex-col items-center">
               <span className="text-xs uppercase tracking-widest text-slate-400 font-bold mb-3">
                 Workout Duration (เลือกระยะเวลาการเล่น)
