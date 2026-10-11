@@ -41,6 +41,7 @@ export default function FitQuest({ onGameOver }: GameProps) {
     score: 0,
     formPhase: "idle",
     giveUpTimer: 0,
+    kickReady: false, // gate: must confirm standing before counting kick
   });
 
   // Calculate Angle between 3 points
@@ -71,6 +72,7 @@ export default function FitQuest({ onGameOver }: GameProps) {
         setCountdown(3);
         logic.current.currentReps = 0;
         logic.current.formPhase = "idle";
+        logic.current.kickReady = false;
       }
     } else if (phase === "DONE") {
       setTimeout(() => onGameOver(logic.current.score), 2000);
@@ -113,15 +115,18 @@ export default function FitQuest({ onGameOver }: GameProps) {
         if (ex.id === "marching") {
           const lAngle = getAngle(poseState.leftHip, poseState.leftKnee, poseState.leftAnkle);
           const rAngle = getAngle(poseState.rightHip, poseState.rightKnee, poseState.rightAnkle);
-          const isLifted = lAngle < 140 || rAngle < 140;
+          // Tightened: must lift knee to < 120° (more deliberate), return to > 155° to reset
+          const isLifted = lAngle < 120 || rAngle < 120;
+          const isDown = lAngle > 155 && rAngle > 155;
 
           if (logic.current.formPhase === "idle" && isLifted) {
             logic.current.formPhase = "up";
             feedbackStr = "Good lift!";
-          } else if (logic.current.formPhase === "up" && !isLifted) {
+          } else if (logic.current.formPhase === "up" && isDown) {
+            // Must fully lower before counting next rep
             logic.current.formPhase = "idle";
             repCompleted = true;
-          } else if (!isLifted) {
+          } else if (logic.current.formPhase === "idle" && !isLifted) {
             feedbackStr = "Lift knees higher!";
           }
         } 
@@ -129,32 +134,69 @@ export default function FitQuest({ onGameOver }: GameProps) {
           const lAngle = getAngle(poseState.leftHip, poseState.leftKnee, poseState.leftAnkle);
           const rAngle = getAngle(poseState.rightHip, poseState.rightKnee, poseState.rightAnkle);
           const kneeAngle = Math.min(lAngle, rAngle);
-          
+
           const isDown = kneeAngle < 110;
           const isUp = kneeAngle > 160;
 
-          // Check Modifiers
+          // Squat-Punch modifier: wrist above shoulder at bottom of squat
           const lPunch = poseState.leftWrist.y < poseState.leftShoulder.y;
           const rPunch = poseState.rightWrist.y < poseState.rightShoulder.y;
           const isPunching = ex.id === "squat-punch" ? (lPunch || rPunch) : true;
 
-          const lKickAngle = getAngle(poseState.leftShoulder, poseState.leftHip, poseState.leftAnkle);
-          const rKickAngle = getAngle(poseState.rightShoulder, poseState.rightHip, poseState.rightAnkle);
-          const isKicking = ex.id === "squat-kick" ? (lKickAngle > 150 || rKickAngle > 150) : true;
+          if (ex.id === "squat-kick") {
+            // ---- SQUAT-KICK: 3-phase + kickReady gate ----
+            // Phase idle → down → up (kickReady=false) → confirm standing → kick → idle
+            //
+            // Kick detection: one knee rises ABOVE the hip in screen coords (y decreases upward)
+            // This is far more reliable than angle since a straight standing leg also has ~170°
+            const lKneeAboveHip = poseState.leftKnee.y < poseState.leftHip.y;
+            const rKneeAboveHip = poseState.rightKnee.y < poseState.rightHip.y;
 
-          if (logic.current.formPhase === "idle" && isDown) {
-            logic.current.formPhase = "down";
-          } else if (logic.current.formPhase === "down") {
-            if (ex.id === "squat-punch" && !isPunching) feedbackStr = "Punch at the bottom!";
-            else if (ex.id === "squat-kick" && !isKicking) feedbackStr = "Kick forward!";
-            else feedbackStr = "Now stand up!";
-            
-            if (isUp && isPunching && isKicking) {
-              logic.current.formPhase = "idle";
-              repCompleted = true;
+            if (logic.current.formPhase === "idle" && isDown) {
+              logic.current.formPhase = "down";
+              feedbackStr = "Going down...";
+            } else if (logic.current.formPhase === "down" && isUp) {
+              // Stood up — reset gate, wait for confirmed standing before allowing kick
+              logic.current.formPhase = "up";
+              logic.current.kickReady = false;
+              feedbackStr = "Stand tall!";
+            } else if (logic.current.formPhase === "up") {
+              if (!logic.current.kickReady) {
+                // Confirm both knees are below hips (normal standing position)
+                if (!lKneeAboveHip && !rKneeAboveHip) {
+                  logic.current.kickReady = true;
+                  feedbackStr = "Now kick!";
+                } else {
+                  feedbackStr = "Stand tall first!";
+                }
+              } else {
+                // Gate open — now watch for the kick
+                if (lKneeAboveHip || rKneeAboveHip) {
+                  logic.current.formPhase = "idle";
+                  logic.current.kickReady = false;
+                  repCompleted = true;
+                } else {
+                  feedbackStr = "Kick forward!";
+                }
+              }
+            } else if (logic.current.formPhase === "idle") {
+              feedbackStr = "Squat down!";
             }
           } else {
-            feedbackStr = kneeAngle > 110 && kneeAngle < 160 ? "Deeper!" : "Ready";
+            // ---- SQUAT / SQUAT-PUNCH: 2-phase ----
+            if (logic.current.formPhase === "idle" && isDown) {
+              logic.current.formPhase = "down";
+            } else if (logic.current.formPhase === "down") {
+              if (ex.id === "squat-punch" && !isPunching) feedbackStr = "Punch at the bottom!";
+              else feedbackStr = "Now stand up!";
+
+              if (isUp && isPunching) {
+                logic.current.formPhase = "idle";
+                repCompleted = true;
+              }
+            } else {
+              feedbackStr = kneeAngle > 110 && kneeAngle < 160 ? "Deeper!" : "Ready";
+            }
           }
         }
 

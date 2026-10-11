@@ -363,14 +363,19 @@ export default function AppEntry() {
                 <span className="text-sm text-slate-400">🏃 โหมดปกติ: วิ่งไม่มีกำหนดเวลา — เกมจบเมื่อชนสิ่งกีดขวาง</span>
               </div>
             )}
-            {!isProMode && selectedGame !== "Block Jump Game" && (
+            {!isProMode && selectedGame === "FitQuest" && (
+              <div className="w-full max-w-2xl bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4 mb-8 text-center">
+                <span className="text-sm text-slate-400">🏋️ FitQuest นับตามจำนวนครั้ง — ทำครบ 4 ท่าจึงจะจบ (ไม่มีกำหนดเวลา)</span>
+              </div>
+            )}
+            {!isProMode && selectedGame !== "Block Jump Game" && selectedGame !== "FitQuest" && (
               <div className="w-full max-w-2xl bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4 mb-8 text-center">
                 <span className="text-sm text-slate-400">⏱️ โหมดปกติ: เล่น 1 รอบ 3 นาที — กด Replay เพื่อเล่นซ้ำได้</span>
               </div>
             )}
 
-            {/* Session Duration Selector: only shown in Pro mode */}
-            {isProMode && (
+            {/* Session Duration Selector: only shown in Pro mode, and only for time-based games */}
+            {isProMode && selectedGame !== "FitQuest" && (
             <div className="w-full max-w-2xl bg-slate-900/80 border border-slate-700/80 rounded-2xl p-4 mb-8 backdrop-blur-md flex flex-col items-center">
               <span className="text-xs uppercase tracking-widest text-slate-400 font-bold mb-3">
                 Workout Duration (เลือกระยะเวลาการเล่น)
@@ -414,6 +419,12 @@ export default function AppEntry() {
               </div>
             </div>
             )}
+            {isProMode && selectedGame === "FitQuest" && (
+              <div className="w-full max-w-2xl bg-slate-800/60 border border-slate-700/50 rounded-2xl p-4 mb-8 text-center">
+                <span className="text-sm text-slate-400">🏋️ FitQuest Pro: นับ reps ตลอด session — Polar HR จะปรับความเข้มให้อัตโนมัติ</span>
+              </div>
+            )}
+
 
             {/* Intensity Selection Buttons */}
             <div className="flex gap-6 w-full justify-center">

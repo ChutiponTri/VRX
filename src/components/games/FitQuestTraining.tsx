@@ -30,6 +30,7 @@ export default function FitQuestTraining({ onGameOver }: GameProps) {
     score: 0,
     formPhase: "idle",
     swapTimer: 0,
+    kickReady: false, // gate: must confirm standing before counting kick
   });
 
   // Calculate Angle between 3 points
@@ -71,6 +72,7 @@ export default function FitQuestTraining({ onGameOver }: GameProps) {
           logic.current.currentReps = 0;
           logic.current.swapTimer = 0;
           logic.current.formPhase = "idle";
+          logic.current.kickReady = false;
           
           // Update DOM directly
           const newEx = EXERCISES[logic.current.exIndex];
@@ -95,15 +97,18 @@ export default function FitQuestTraining({ onGameOver }: GameProps) {
       if (currentEx.id === "marching") {
         const lAngle = getAngle(poseState.leftHip, poseState.leftKnee, poseState.leftAnkle);
         const rAngle = getAngle(poseState.rightHip, poseState.rightKnee, poseState.rightAnkle);
-        const isLifted = lAngle < 140 || rAngle < 140;
+        // Tightened: must lift knee to < 120° (more deliberate), return to > 155° to reset
+        const isLifted = lAngle < 120 || rAngle < 120;
+        const isDown = lAngle > 155 && rAngle > 155;
 
         if (logic.current.formPhase === "idle" && isLifted) {
           logic.current.formPhase = "up";
           feedbackStr = "Good lift!";
-        } else if (logic.current.formPhase === "up" && !isLifted) {
+        } else if (logic.current.formPhase === "up" && isDown) {
+          // Must fully lower before counting next rep
           logic.current.formPhase = "idle";
           repCompleted = true;
-        } else if (!isLifted) {
+        } else if (logic.current.formPhase === "idle" && !isLifted) {
           feedbackStr = "Lift knees higher!";
         }
       } 
@@ -111,33 +116,69 @@ export default function FitQuestTraining({ onGameOver }: GameProps) {
         const lAngle = getAngle(poseState.leftHip, poseState.leftKnee, poseState.leftAnkle);
         const rAngle = getAngle(poseState.rightHip, poseState.rightKnee, poseState.rightAnkle);
         const kneeAngle = Math.min(lAngle, rAngle);
-        
+
         const isDown = kneeAngle < 110;
         const isUp = kneeAngle > 160;
 
-        // Modifiers
+        // Squat-Punch modifier
         const lPunch = poseState.leftWrist.y < poseState.leftShoulder.y;
         const rPunch = poseState.rightWrist.y < poseState.rightShoulder.y;
         const isPunching = currentEx.id === "squat-punch" ? (lPunch || rPunch) : true;
 
-        const lKickAngle = getAngle(poseState.leftShoulder, poseState.leftHip, poseState.leftAnkle);
-        const rKickAngle = getAngle(poseState.rightShoulder, poseState.rightHip, poseState.rightAnkle);
-        const isKicking = currentEx.id === "squat-kick" ? (lKickAngle > 150 || rKickAngle > 150) : true;
+        if (currentEx.id === "squat-kick") {
+          // ---- SQUAT-KICK: 3-phase + kickReady gate ----
+          // Kick detection: one knee rises ABOVE the hip in screen coords
+          // This is far more reliable than angle since standing = both legs ~170°
+          const lKneeAboveHip = poseState.leftKnee.y < poseState.leftHip.y;
+          const rKneeAboveHip = poseState.rightKnee.y < poseState.rightHip.y;
 
-        if (logic.current.formPhase === "idle" && isDown) {
-          logic.current.formPhase = "down";
-        } else if (logic.current.formPhase === "down") {
-          if (currentEx.id === "squat-punch" && !isPunching) feedbackStr = "Punch at the bottom!";
-          else if (currentEx.id === "squat-kick" && !isKicking) feedbackStr = "Kick forward!";
-          else feedbackStr = "Now stand up!";
-          
-          if (isUp && isPunching && isKicking) {
-            logic.current.formPhase = "idle";
-            repCompleted = true;
+          if (logic.current.formPhase === "idle" && isDown) {
+            logic.current.formPhase = "down";
+            feedbackStr = "Going down...";
+          } else if (logic.current.formPhase === "down" && isUp) {
+            // Stood up — reset gate, wait for confirmed standing before allowing kick
+            logic.current.formPhase = "up";
+            logic.current.kickReady = false;
+            feedbackStr = "Stand tall!";
+          } else if (logic.current.formPhase === "up") {
+            if (!logic.current.kickReady) {
+              // Confirm both knees are below hips (normal standing position)
+              if (!lKneeAboveHip && !rKneeAboveHip) {
+                logic.current.kickReady = true;
+                feedbackStr = "Now kick!";
+              } else {
+                feedbackStr = "Stand tall first!";
+              }
+            } else {
+              // Gate open — now watch for the kick
+              if (lKneeAboveHip || rKneeAboveHip) {
+                logic.current.formPhase = "idle";
+                logic.current.kickReady = false;
+                repCompleted = true;
+              } else {
+                feedbackStr = "Kick forward!";
+              }
+            }
+          } else if (logic.current.formPhase === "idle") {
+            feedbackStr = "Squat down!";
           }
         } else {
-          feedbackStr = kneeAngle > 110 && kneeAngle < 160 ? "Deeper!" : "Ready";
+          // ---- SQUAT / SQUAT-PUNCH: 2-phase ----
+          if (logic.current.formPhase === "idle" && isDown) {
+            logic.current.formPhase = "down";
+          } else if (logic.current.formPhase === "down") {
+            if (currentEx.id === "squat-punch" && !isPunching) feedbackStr = "Punch at the bottom!";
+            else feedbackStr = "Now stand up!";
+
+            if (isUp && isPunching) {
+              logic.current.formPhase = "idle";
+              repCompleted = true;
+            }
+          } else {
+            feedbackStr = kneeAngle > 110 && kneeAngle < 160 ? "Deeper!" : "Ready";
+          }
         }
+
       }
 
       // Apply Rep Completion & Dynamic Score (ปรับฐานคะแนนจาก 100 เป็น 10 ให้เลขไม่เว่อค่ะ)
